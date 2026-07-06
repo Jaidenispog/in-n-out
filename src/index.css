@@ -1,0 +1,66 @@
+@import 'tailwindcss';
+
+@theme {
+  /* iOS system palette */
+  --color-ios-bg: #f2f2f7;
+  --color-ios-card: #ffffff;
+  --color-ios-blue: #007aff;
+  --color-ios-green: #34c759;
+  --color-ios-red: #ff3b30;
+  --color-ios-orange: #ff9500;
+  --color-ios-yellow: #ffcc00;
+  --color-ios-purple: #af52de;
+  --color-ios-teal: #30b0c7;
+  --color-ios-gray: #8e8e93;
+  --color-ios-gray2: #aeaeb2;
+  --color-ios-gray5: #e5e5ea;
+  --color-ios-gray6: #f2f2f7;
+  --color-ios-label: #1c1c1e;
+  --color-ios-label2: #6d6d72;
+  --color-ios-sep: rgba(60, 60, 67, 0.12);
+
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+
+  --radius-card: 1rem;
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+html,
+body {
+  background: var(--color-ios-bg);
+  color: var(--color-ios-label);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+/* iPhone safe areas (notch / home indicator) */
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Prevent iOS zoom-on-focus: inputs must be >=16px */
+input,
+select,
+textarea {
+  font-size: 16px;
+}
+
+/* Subtle press feedback everywhere, like native */
+button {
+  touch-action: manipulation;
+}
+button:active {
+  opacity: 0.7;
+  transition: opacity 0s;
+}
+
+::placeholder {
+  color: var(--color-ios-gray2);
+}
