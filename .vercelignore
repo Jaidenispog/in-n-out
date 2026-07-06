@@ -1,0 +1,6 @@
+# Never upload secrets or local-only data to the deployment
+.env
+.env.*
+staff.csv
+staff-*.csv
+import-output/

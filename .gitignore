@@ -32,3 +32,5 @@ staff-*.csv
 
 # Local agent/tooling state
 .claude-flow/
+.vercel
+.env*
