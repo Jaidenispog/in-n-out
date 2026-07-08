@@ -23,7 +23,6 @@ export default function CarIntake() {
   const [notes, setNotes] = useState('')
   const [staffName, setStaffName] = useState('')
   const [damageFiles, setDamageFiles] = useState<File[]>([])
-  const [reportFiles, setReportFiles] = useState<File[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -51,7 +50,6 @@ export default function CarIntake() {
       })
       try {
         if (damageFiles.length) await uploadStaged(damageFiles, 'damage', { movement_id: mv.id }, staffId)
-        if (reportFiles.length) await uploadStaged(reportFiles, 'other', { movement_id: mv.id }, staffId)
       } catch {
         // The intake is saved — photos can be added from the record page.
       }
@@ -111,7 +109,9 @@ export default function CarIntake() {
         </Field>
 
         <PhotoStager label="Damage photos" files={damageFiles} onChange={setDamageFiles} />
-        <PhotoStager label="Report card photos" files={reportFiles} onChange={setReportFiles} />
+        <p className="px-1 text-[13px] text-ios-gray">
+          The report card is added later — once the work's done, search this rego in Cars and add the report card photo there.
+        </p>
 
         <Button type="submit" full loading={saving} className="mt-2">
           Save intake

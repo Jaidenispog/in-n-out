@@ -116,6 +116,8 @@ function MovementView({ m }: { m: Movement }) {
       <Row label="Staff" value={staffLabel(m.staff_name)} />
       <Row label="Driver" value={m.driver_name} />
       <Row label="Phone" value={tel(m.driver_phone)} />
+      <Row label="Owner (for fines)" value={m.owner_name} />
+      <Row label="Owner phone" value={tel(m.owner_phone)} />
       <Row label="Car in (customer)" value={m.cars_in_rego} />
       <Row label="Car out (loan)" value={m.cars_out_rego} />
       <Row label="When" value={when} />
@@ -316,12 +318,15 @@ function MovementEdit({ m, saving, onSave }: { m: Movement; saving: boolean; onS
   const [f, setF] = useState({
     driver_name: m.driver_name, driver_phone: m.driver_phone, cars_in_rego: m.cars_in_rego,
     cars_out_rego: m.cars_out_rego, purpose: m.purpose, status: m.status, notes: m.notes, signed_off: m.signed_off,
+    owner_name: m.owner_name || '', owner_phone: m.owner_phone || '',
     staff_name: m.staff_name || '',
   })
   return (
     <Card className="mb-3 flex flex-col gap-4 p-4">
       <FI label="Driver name" value={f.driver_name} onChange={(v) => setF({ ...f, driver_name: v })} />
       <FI label="Driver phone" value={f.driver_phone} onChange={(v) => setF({ ...f, driver_phone: v })} />
+      <FI label="Owner name (for fines)" value={f.owner_name} onChange={(v) => setF({ ...f, owner_name: v })} />
+      <FI label="Owner phone" value={f.owner_phone} onChange={(v) => setF({ ...f, owner_phone: v })} />
       <FI label="Car in (customer rego)" upper value={f.cars_in_rego} onChange={(v) => setF({ ...f, cars_in_rego: v })} />
       <FI label="Car out (loan rego)" upper value={f.cars_out_rego} onChange={(v) => setF({ ...f, cars_out_rego: v })} />
       <Field label="Purpose"><SegmentedControl options={PURPOSE_OPTIONS} value={f.purpose} onChange={(v) => setF({ ...f, purpose: v })} /></Field>
@@ -331,6 +336,7 @@ function MovementEdit({ m, saving, onSave }: { m: Movement; saving: boolean; onS
       <Notes value={f.notes} onChange={(v) => setF({ ...f, notes: v })} />
       <Button full loading={saving} onClick={() => onSave({
         driver_name: f.driver_name.trim(), driver_phone: f.driver_phone.trim(),
+        owner_name: f.owner_name.trim(), owner_phone: f.owner_phone.trim(),
         cars_in_rego: normRego(f.cars_in_rego), cars_out_rego: normRego(f.cars_out_rego),
         purpose: f.purpose, status: f.status, notes: f.notes, signed_off: f.signed_off, staff_name: f.staff_name.trim(),
       })}>Save changes</Button>
@@ -599,10 +605,7 @@ export default function RecordDetail() {
           )}
 
           {rec.kind === 'movement' && rec.row.purpose === 'INTAKE' ? (
-            <>
-              <PhotoSection links={{ movement_id: rec.row.id }} defaultType="damage" filterType="damage" title="Damage photos" staffId={staffId} />
-              <PhotoSection links={{ movement_id: rec.row.id }} defaultType="other" filterType="other" title="Report card photos" staffId={staffId} />
-            </>
+            <PhotoSection links={{ movement_id: rec.row.id }} defaultType="damage" filterType="damage" title="Damage photos" staffId={staffId} />
           ) : rec.kind === 'movement' ? (
             <>
               <PhotoSection links={{ movement_id: rec.row.id }} defaultType="before_handover" filterType="before_handover" title="Before photos — our car" staffId={staffId} />
@@ -616,6 +619,7 @@ export default function RecordDetail() {
                 : { vehicle_id: rec.row.id }
               }
               defaultType={rec.kind === 'return' ? 'after_return' : 'other'}
+              title={rec.kind === 'vehicle' && !rec.row.is_company_car ? 'Report card' : 'Photos'}
               staffId={staffId}
             />
           )}

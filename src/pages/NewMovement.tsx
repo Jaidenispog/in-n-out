@@ -56,6 +56,8 @@ export default function NewMovement() {
   // Form state
   const [driverName, setDriverName] = useState('')
   const [mobile, setMobile] = useState('')
+  const [ownerName, setOwnerName] = useState('')
+  const [ownerPhone, setOwnerPhone] = useState('')
   const [carsIn, setCarsIn] = useState('')
   const [carsOut, setCarsOut] = useState('')
   const [purpose, setPurpose] = useState<Purpose>('RENT')
@@ -142,6 +144,8 @@ export default function NewMovement() {
           driver_phone: mobile,
           cars_in_rego: carsIn,
           cars_out_rego: carsOut,
+          owner_name: ownerName,
+          owner_phone: ownerPhone,
           purpose,
           moved_at: new Date(dt).toISOString(),
           notes,
@@ -211,6 +215,25 @@ export default function NewMovement() {
             onChange={(e) => setMobile(e.target.value)}
             placeholder="04xx xxx xxx"
             autoComplete="tel"
+          />
+        </Field>
+
+        <Field label="Owner name">
+          <Input
+            value={ownerName}
+            onChange={(e) => setOwnerName(e.target.value)}
+            placeholder="If not the driver — who fines & charges go to"
+            autoCapitalize="words"
+          />
+        </Field>
+
+        <Field label="Owner number">
+          <Input
+            type="tel"
+            inputMode="tel"
+            value={ownerPhone}
+            onChange={(e) => setOwnerPhone(e.target.value)}
+            placeholder="04xx xxx xxx"
           />
         </Field>
 

@@ -105,6 +105,8 @@ export async function ensureCustomer(name: string, mobile: string): Promise<stri
 export interface NewMovementInput {
   driver_name: string
   driver_phone: string
+  owner_name?: string
+  owner_phone?: string
   cars_in_rego: string
   cars_out_rego: string
   purpose: string
@@ -130,6 +132,8 @@ export async function createMovement(input: NewMovementInput): Promise<Movement>
       customer_id: customerId,
       driver_name: input.driver_name.trim(),
       driver_phone: normPhone(input.driver_phone),
+      owner_name: (input.owner_name ?? '').trim(),
+      owner_phone: normPhone(input.owner_phone ?? ''),
       cars_in_rego: carsIn,
       cars_in_rego_raw: input.cars_in_rego,
       cars_out_rego: carsOut,

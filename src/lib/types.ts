@@ -63,6 +63,8 @@ export interface Movement {
   customer_id: string | null
   driver_name: string
   driver_phone: string
+  owner_name: string
+  owner_phone: string
   cars_in_rego: string
   cars_in_rego_raw: string
   cars_out_vehicle_id: string | null
