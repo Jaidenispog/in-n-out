@@ -316,6 +316,7 @@ export default function RecordDetail() {
   }
 
   async function runAction(key: string, fn: () => Promise<void>) {
+    if (busyAction) return // guard: never run two record actions at once (e.g. Start + Cancel)
     setBusyAction(key)
     setError('')
     try { await fn() }
@@ -416,19 +417,19 @@ export default function RecordDetail() {
               )}
 
               {rec.kind === 'movement' && rec.row.status === 'active' && (
-                <Button full className="mb-3" onClick={() => navigate('/return')}>Record return</Button>
+                <Button full className="mb-3" onClick={() => navigate('/return?rego=' + encodeURIComponent(rec.row.cars_out_rego))}>Record return</Button>
               )}
               {rec.kind === 'booking' && rec.row.status === 'booked' && (
                 <div className="mb-3 flex flex-col gap-2">
-                  <Button full loading={busyAction === 'start'} onClick={() => startBooking(rec.row)}>Start — give car out</Button>
-                  <Button variant="danger" full loading={busyAction === 'cancel'}
+                  <Button full loading={busyAction === 'start'} disabled={!!busyAction} onClick={() => startBooking(rec.row)}>Start — give car out</Button>
+                  <Button variant="danger" full loading={busyAction === 'cancel'} disabled={!!busyAction}
                     onClick={() => { if (window.confirm('Cancel this booking?')) runAction('cancel', async () => { await cancelBooking(rec.row.id, staffId); await load() }) }}>
                     Cancel booking
                   </Button>
                 </div>
               )}
               {rec.kind === 'booking' && rec.row.status === 'active' && (
-                <Button full className="mb-3" loading={busyAction === 'complete'} onClick={() => setBookingStatus('complete', rec.row.id, 'completed')}>
+                <Button full className="mb-3" loading={busyAction === 'complete'} disabled={!!busyAction} onClick={() => setBookingStatus('complete', rec.row.id, 'completed')}>
                   Mark completed
                 </Button>
               )}

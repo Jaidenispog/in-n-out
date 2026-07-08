@@ -159,7 +159,7 @@ export default function Dashboard() {
                 label="Returned today"
                 tone="blue"
                 icon={<IconArrowDown size={18} />}
-                onClick={() => navigate('/search')}
+                onClick={() => navigate('/cars?filter=returned')}
               />
               <StatCard
                 value={stats.goingOutToday}

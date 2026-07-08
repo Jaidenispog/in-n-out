@@ -2,7 +2,7 @@
 // Single fetch (vehicles + recent returns), everything else filtered client-side.
 
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { listReturns, listVehicles } from '../lib/db'
 import { normRego, startOfTodayISO, vehicleStatusLabel, vehicleStatusTone } from '../lib/utils'
 import type { Return, Vehicle } from '../lib/types'
@@ -60,8 +60,13 @@ export default function Availability() {
   const [returnedToday, setReturnedToday] = useState<Set<string>>(() => new Set())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [searchParams] = useSearchParams()
   const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState<FilterKey>('all')
+  const [filter, setFilter] = useState<FilterKey>(() => {
+    const f = searchParams.get('filter')
+    const valid: FilterKey[] = ['all', 'available', 'out', 'booked', 'returned', 'repair', 'review']
+    return f && (valid as string[]).includes(f) ? (f as FilterKey) : 'all'
+  })
   const [showCustomer, setShowCustomer] = useState(false)
 
   useEffect(() => {

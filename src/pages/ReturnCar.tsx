@@ -1,8 +1,8 @@
 // Record Return — customer brings one of our cars back.
 // Matches the rego against active movements; the db layer links + closes the movement.
 
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import type { Movement } from '../lib/types'
 import { formatDateTime, normRego, nowLocalInputValue, purposeLabel } from '../lib/utils'
 import { createReturn, findActiveMovementByRego } from '../lib/db'
@@ -15,8 +15,9 @@ import { useAuth } from '../auth/AuthContext'
 export default function ReturnCar() {
   const navigate = useNavigate()
   const { staffId } = useAuth()
+  const [searchParams] = useSearchParams()
 
-  const [rego, setRego] = useState('')
+  const [rego, setRego] = useState(() => (searchParams.get('rego') || '').toUpperCase())
   const [driverName, setDriverName] = useState('')
   const [mobile, setMobile] = useState('')
   const [returnedAt, setReturnedAt] = useState(nowLocalInputValue())
@@ -52,6 +53,12 @@ export default function ReturnCar() {
       setChecking(false)
     }
   }
+
+  // Arrived from a movement's "Record return" (rego pre-seeded) — auto-check the match once.
+  // oxlint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (normRego(rego).length >= 4) void checkRego()
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
