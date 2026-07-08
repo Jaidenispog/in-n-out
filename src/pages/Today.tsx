@@ -66,14 +66,20 @@ export default function Today() {
     const arr = [...list]
     if (sort === 'oldest') return arr.sort((a, b) => a.created_at.localeCompare(b.created_at))
     if (sort === 'rego') return arr.sort((a, b) => (a[regoField] || '').localeCompare(b[regoField] || ''))
-    if (sort === 'driver') return arr.sort((a, b) => (a.driver_name || '~').localeCompare(b.driver_name || '~'))
+    if (sort === 'driver') return arr.sort((a, b) => {
+      const ad = (a.driver_name || '').trim(), bd = (b.driver_name || '').trim()
+      return (!ad !== !bd) ? (ad ? -1 : 1) : ad.localeCompare(bd)
+    })
     return arr.sort((a, b) => b.created_at.localeCompare(a.created_at))
   }
   const sortedReturns = () => {
     const arr = [...returns]
     if (sort === 'oldest') return arr.sort((a, b) => a.created_at.localeCompare(b.created_at))
     if (sort === 'rego') return arr.sort((a, b) => (a.returned_rego || '').localeCompare(b.returned_rego || ''))
-    if (sort === 'driver') return arr.sort((a, b) => (a.driver_name || '~').localeCompare(b.driver_name || '~'))
+    if (sort === 'driver') return arr.sort((a, b) => {
+      const ad = (a.driver_name || '').trim(), bd = (b.driver_name || '').trim()
+      return (!ad !== !bd) ? (ad ? -1 : 1) : ad.localeCompare(bd)
+    })
     return arr.sort((a, b) => b.created_at.localeCompare(a.created_at))
   }
 

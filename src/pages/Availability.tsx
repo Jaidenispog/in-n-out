@@ -168,7 +168,11 @@ export default function Availability() {
     const arr = [...filtered]
     switch (sort) {
       case 'make':
-        return arr.sort((a, b) => (a.make || '~').localeCompare(b.make || '~') || a.rego.localeCompare(b.rego))
+        return arr.sort((a, b) => {
+          const am = (a.make || '').trim(), bm = (b.make || '').trim()
+          if (!am !== !bm) return am ? -1 : 1 // cars with a make first, "unknown" last
+          return am.localeCompare(bm) || a.rego.localeCompare(b.rego)
+        })
       case 'status':
         return arr.sort((a, b) => a.status.localeCompare(b.status) || a.rego.localeCompare(b.rego))
       case 'added':
