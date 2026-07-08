@@ -95,10 +95,14 @@ export function PhotoSection({
   links,
   defaultType,
   staffId,
+  title = 'Photos',
+  filterType,
 }: {
   links: PhotoLinks
   defaultType: PhotoType
   staffId: string
+  title?: string
+  filterType?: PhotoType
 }) {
   const [photos, setPhotos] = useState<(Photo & { url: string })[]>([])
   const [loading, setLoading] = useState(true)
@@ -120,7 +124,7 @@ export function PhotoSection({
     setBusy(true)
     setErr('')
     try {
-      for (const f of files) await uploadPhoto(f, defaultType, links, staffId)
+      for (const f of files) await uploadPhoto(f, filterType ?? defaultType, links, staffId)
       reload()
     } catch (e) {
       // Surface the failure — a silently-dropped before/after photo is a real problem.
@@ -137,9 +141,11 @@ export function PhotoSection({
     reload()
   }
 
+  const shown = filterType ? photos.filter((p) => p.photo_type === filterType) : photos
+
   return (
     <div>
-      <SectionHeader>Photos</SectionHeader>
+      <SectionHeader>{title}</SectionHeader>
       <div className="rounded-card bg-ios-card p-4 shadow-card">
         <ErrorBanner message={err} />
         {loading ? (
@@ -148,12 +154,14 @@ export function PhotoSection({
           </div>
         ) : (
           <div className="flex flex-wrap gap-2">
-            {photos.map((p) => (
+            {shown.map((p) => (
               <button key={p.id} type="button" onClick={() => setViewer(p)} className="relative">
                 <img src={p.url} alt={typeLabels[p.photo_type]} className="h-20 w-20 rounded-xl object-cover" />
-                <span className="absolute right-0 bottom-0 left-0 rounded-b-xl bg-black/45 px-1 py-0.5 text-center text-[9px] font-medium text-white">
-                  {typeLabels[p.photo_type]}
-                </span>
+                {!filterType && (
+                  <span className="absolute right-0 bottom-0 left-0 rounded-b-xl bg-black/45 px-1 py-0.5 text-center text-[9px] font-medium text-white">
+                    {typeLabels[p.photo_type]}
+                  </span>
+                )}
               </button>
             ))}
             <button

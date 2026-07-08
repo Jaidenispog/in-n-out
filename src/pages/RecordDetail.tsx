@@ -6,7 +6,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { PURPOSE_OPTIONS } from '../lib/types'
 import type { Activity, Booking, Movement, MovementStatus, Return, Vehicle, VehicleStatus } from '../lib/types'
-import { bookingStatusLabel, bookingStatusTone, formatDateTime, movementStatusLabel, movementStatusTone, normRego, purposeLabel, purposeTone, timeAgo, vehicleStatusLabel, vehicleStatusTone } from '../lib/utils'
+import { bookingStatusLabel, bookingStatusTone, formatDateTime, localDateOf, localTimeOf, movementStatusLabel, movementStatusTone, normRego, purposeLabel, purposeTone, timeAgo, vehicleStatusLabel, vehicleStatusTone } from '../lib/utils'
 import { cancelBooking, createMovement, getBooking, getMovement, getRawImportRow, getReturn, historyForRecord, listReturnsByRego, listVehicles, setVehicleStatusByRego, updateBooking, updateMovement, updateReturn, updateVehicle } from '../lib/db'
 import { Badge, Button, Card, ErrorBanner, Field, IconChevronLeft, Input, ListRow, LoadingScreen, PageTitle, SectionHeader, SegmentedControl, Spinner, TextArea } from '../components/ui'
 import { PhotoSection } from '../components/PhotoPicker'
@@ -129,6 +129,23 @@ function MovementView({ m }: { m: Movement }) {
   )
 }
 
+function IntakeView({ m }: { m: Movement }) {
+  const when = m.moved_at ? formatDateTime(m.moved_at) : [m.movement_date, m.movement_time].filter(Boolean).join(' ')
+  return (
+    <Card className="mb-3">
+      <div className="flex flex-wrap gap-2 border-b border-ios-sep px-4 py-3">
+        <Badge tone="orange">Customer car in</Badge>
+      </div>
+      <Row label="Customer" value={m.driver_name} />
+      <Row label="Phone" value={tel(m.driver_phone)} />
+      <Row label="Car rego" value={m.cars_in_rego} />
+      <Row label="When" value={when} />
+      <Row label="Notes" value={m.notes} />
+      <Row label="Client details (import)" value={m.client_details_raw} />
+    </Card>
+  )
+}
+
 function ReturnView({ r, onOpenMovement }: { r: Return; onOpenMovement: (id: string) => void }) {
   const mid = r.movement_id
   const when = r.returned_at ? formatDateTime(r.returned_at) : [r.return_date, r.return_time].filter(Boolean).join(' ')
@@ -227,6 +244,30 @@ function MovementEdit({ m, saving, onSave }: { m: Movement; saving: boolean; onS
         cars_in_rego: normRego(f.cars_in_rego), cars_out_rego: normRego(f.cars_out_rego),
         purpose: f.purpose, status: f.status, notes: f.notes, signed_off: f.signed_off,
       })}>Save changes</Button>
+    </Card>
+  )
+}
+
+function IntakeEdit({ m, saving, onSave }: { m: Movement; saving: boolean; onSave: (p: Partial<Movement>) => void }) {
+  const [f, setF] = useState({
+    driver_name: m.driver_name, driver_phone: m.driver_phone, cars_in_rego: m.cars_in_rego,
+    moved_at: isoToInput(m.moved_at), notes: m.notes,
+  })
+  return (
+    <Card className="mb-3 flex flex-col gap-4 p-4">
+      <FI label="Customer name" value={f.driver_name} onChange={(v) => setF({ ...f, driver_name: v })} />
+      <FI label="Mobile" value={f.driver_phone} onChange={(v) => setF({ ...f, driver_phone: v })} />
+      <FI label="Car rego" upper value={f.cars_in_rego} onChange={(v) => setF({ ...f, cars_in_rego: v })} />
+      <Field label="Date & time"><Input type="datetime-local" value={f.moved_at} onChange={(e) => setF({ ...f, moved_at: e.target.value })} /></Field>
+      <Notes value={f.notes} onChange={(v) => setF({ ...f, notes: v })} />
+      <Button full loading={saving} onClick={() => {
+        const iso = inputToISO(f.moved_at)
+        onSave({
+          driver_name: f.driver_name.trim(), driver_phone: f.driver_phone.trim(),
+          cars_in_rego: normRego(f.cars_in_rego), notes: f.notes,
+          ...(iso ? { moved_at: iso, movement_date: localDateOf(iso), movement_time: localTimeOf(iso) } : {}),
+        })
+      }}>Save changes</Button>
     </Card>
   )
 }
@@ -388,6 +429,7 @@ export default function RecordDetail() {
 
   const title = !type ? 'Record'
     : type === 'vehicle' ? (rec?.kind === 'vehicle' ? rec.row.rego : 'Vehicle')
+    : type === 'movement' && rec?.kind === 'movement' && rec.row.purpose === 'INTAKE' ? 'Car intake'
     : (TITLES[type] ?? 'Record')
 
   return (
@@ -417,7 +459,11 @@ export default function RecordDetail() {
 
           {editing ? (
             rec.kind === 'movement' ? (
-              <MovementEdit key={rec.row.id} m={rec.row} saving={saving} onSave={(p) => doSave(() => saveMovement(rec.row as Movement, p))} />
+              rec.row.purpose === 'INTAKE' ? (
+                <IntakeEdit key={rec.row.id} m={rec.row} saving={saving} onSave={(p) => doSave(() => updateMovement(rec.row.id, p, staffId))} />
+              ) : (
+                <MovementEdit key={rec.row.id} m={rec.row} saving={saving} onSave={(p) => doSave(() => saveMovement(rec.row as Movement, p))} />
+              )
             ) : rec.kind === 'return' ? (
               <ReturnEdit key={rec.row.id} r={rec.row} saving={saving} onSave={(p) => doSave(() => updateReturn(rec.row.id, p, staffId))} />
             ) : rec.kind === 'booking' ? (
@@ -427,7 +473,7 @@ export default function RecordDetail() {
             )
           ) : (
             <>
-              {rec.kind === 'movement' && <MovementView m={rec.row} />}
+              {rec.kind === 'movement' && (rec.row.purpose === 'INTAKE' ? <IntakeView m={rec.row} /> : <MovementView m={rec.row} />)}
               {rec.kind === 'return' && <ReturnView r={rec.row} onOpenMovement={(mid) => navigate(`/record/movement/${mid}`)} />}
               {rec.kind === 'booking' && <BookingView b={rec.row} />}
               {rec.kind === 'vehicle' && <VehicleView v={rec.row} />}
@@ -437,7 +483,7 @@ export default function RecordDetail() {
                 <RawImportCard key={rec.row.id} sheet={rec.row.source_sheet} row={rec.row.source_row} />
               )}
 
-              {rec.kind === 'movement' && rec.row.status === 'active' && (
+              {rec.kind === 'movement' && rec.row.status === 'active' && rec.row.purpose !== 'INTAKE' && rec.row.cars_out_rego && (
                 <Button full className="mb-3" onClick={() => navigate('/return?rego=' + encodeURIComponent(rec.row.cars_out_rego))}>Record return</Button>
               )}
               {rec.kind === 'booking' && rec.row.status === 'booked' && (
@@ -457,16 +503,23 @@ export default function RecordDetail() {
             </>
           )}
 
-          <PhotoSection
-            links={
-              rec.kind === 'movement' ? { movement_id: rec.row.id }
-              : rec.kind === 'return' ? { return_id: rec.row.id }
-              : rec.kind === 'booking' ? { booking_id: rec.row.id }
-              : { vehicle_id: rec.row.id }
-            }
-            defaultType={rec.kind === 'movement' ? 'before_handover' : rec.kind === 'return' ? 'after_return' : 'other'}
-            staffId={staffId}
-          />
+          {rec.kind === 'movement' && rec.row.purpose === 'INTAKE' ? (
+            <>
+              <PhotoSection links={{ movement_id: rec.row.id }} defaultType="damage" filterType="damage" title="Damage photos" staffId={staffId} />
+              <PhotoSection links={{ movement_id: rec.row.id }} defaultType="other" filterType="other" title="Report card photos" staffId={staffId} />
+            </>
+          ) : (
+            <PhotoSection
+              links={
+                rec.kind === 'movement' ? { movement_id: rec.row.id }
+                : rec.kind === 'return' ? { return_id: rec.row.id }
+                : rec.kind === 'booking' ? { booking_id: rec.row.id }
+                : { vehicle_id: rec.row.id }
+              }
+              defaultType={rec.kind === 'movement' ? 'before_handover' : rec.kind === 'return' ? 'after_return' : 'other'}
+              staffId={staffId}
+            />
+          )}
 
           <SectionHeader>History</SectionHeader>
           <Card>

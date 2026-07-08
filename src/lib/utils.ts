@@ -123,6 +123,7 @@ export const purposeTone: Record<string, Tone> = {
   SWAP: 'blue',
   PICKUP: 'gray',
   RETURN: 'green',
+  INTAKE: 'orange',
   OTHER: 'gray',
 }
 

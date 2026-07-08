@@ -4,7 +4,7 @@ export type VehicleStatus = 'available' | 'out' | 'booked' | 'repair' | 'unknown
 export type MovementStatus = 'active' | 'returned' | 'closed'
 export type BookingStatus = 'booked' | 'active' | 'completed' | 'cancelled'
 export type PhotoType = 'before_handover' | 'after_return' | 'damage' | 'odometer' | 'fuel' | 'other'
-export type Purpose = 'RENT' | 'COURTESY' | 'REPAIRS' | 'TOWED' | 'SWAP' | 'PICKUP' | 'RETURN' | 'OTHER' | ''
+export type Purpose = 'RENT' | 'COURTESY' | 'REPAIRS' | 'TOWED' | 'SWAP' | 'PICKUP' | 'RETURN' | 'INTAKE' | 'OTHER' | ''
 
 export const PURPOSE_OPTIONS: { value: Purpose; label: string }[] = [
   { value: 'RENT', label: 'Rent' },

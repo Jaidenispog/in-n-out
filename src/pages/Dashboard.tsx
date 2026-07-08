@@ -210,6 +210,10 @@ export default function Dashboard() {
             </Button>
           </div>
 
+          <Button variant="secondary" full className="mt-3" onClick={() => navigate('/intake')}>
+            Customer car intake
+          </Button>
+
           <SectionHeader action={<button type="button" onClick={() => navigate('/audit')} className="text-[15px] font-medium text-ios-blue active:opacity-60">See all</button>}>Recent activity</SectionHeader>
           <Card>
             {activity.length === 0 ? (
