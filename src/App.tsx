@@ -46,6 +46,7 @@ export default function App() {
           <Route element={<Gate />}>
             <Route index element={<Dashboard />} />
             <Route path="/new" element={<NewMovement />} />
+            <Route path="/rent" element={<NewMovement mode="rent" />} />
             <Route path="/return" element={<ReturnCar />} />
             <Route path="/cars" element={<Availability />} />
             <Route path="/bookings" element={<Bookings />} />

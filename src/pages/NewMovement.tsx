@@ -49,9 +49,10 @@ function conflictLines(c: RegoConflict): string[] {
   return lines
 }
 
-export default function NewMovement() {
+export default function NewMovement({ mode = 'full' }: { mode?: 'full' | 'rent' }) {
   const navigate = useNavigate()
   const { staffId } = useAuth()
+  const isRent = mode === 'rent' // rental: our car out only, no customer car in
 
   // Form state
   const [driverName, setDriverName] = useState('')
@@ -108,7 +109,11 @@ export default function NewMovement() {
   async function handleSubmit() {
     if (saving || checking) return
     setError('')
-    if (!normRego(carsIn) && !outRego) {
+    if (isRent && !outRego) {
+      setError('Enter the rego of the car you are renting out.')
+      return
+    }
+    if (!isRent && !normRego(carsIn) && !outRego) {
       setError('Enter at least one rego — the customer car (cars in) or our car (cars out).')
       return
     }
@@ -179,7 +184,7 @@ export default function NewMovement() {
       >
         <IconChevronLeft size={28} />
       </button>
-      <PageTitle>New movement</PageTitle>
+      <PageTitle>{isRent ? 'Rent a car out' : 'New movement'}</PageTitle>
 
       <form
         className="flex flex-col gap-5"
@@ -237,20 +242,22 @@ export default function NewMovement() {
           />
         </Field>
 
-        <Field label="Customer car rego (cars in)">
-          <Input
-            value={carsIn}
-            onChange={(e) => setCarsIn(e.target.value.toUpperCase())}
-            placeholder="ABC123"
-            autoCapitalize="characters"
-            autoCorrect="off"
-            spellCheck={false}
-            className="font-semibold tracking-wider"
-          />
-        </Field>
+        {!isRent && (
+          <Field label="Customer car rego (cars in)">
+            <Input
+              value={carsIn}
+              onChange={(e) => setCarsIn(e.target.value.toUpperCase())}
+              placeholder="ABC123"
+              autoCapitalize="characters"
+              autoCorrect="off"
+              spellCheck={false}
+              className="font-semibold tracking-wider"
+            />
+          </Field>
+        )}
 
         <div className="flex flex-col gap-2">
-          <Field label="Our car rego (cars out)">
+          <Field label={isRent ? 'Car rego (renting out)' : 'Our car rego (cars out)'}>
             <Input
               value={carsOut}
               onChange={(e) => setCarsOut(e.target.value.toUpperCase())}
@@ -314,8 +321,8 @@ export default function NewMovement() {
           />
         </Field>
 
-        <PhotoStager label="Before photos — our car" files={files} onChange={setFiles} />
-        <PhotoStager label="Before photos — their car" files={theirFiles} onChange={setTheirFiles} />
+        <PhotoStager label={isRent ? 'Car photos' : 'Before photos — our car'} files={files} onChange={setFiles} />
+        {!isRent && <PhotoStager label="Before photos — their car" files={theirFiles} onChange={setTheirFiles} />}
 
         <div className="mt-1 flex flex-col gap-2">
           <ErrorBanner message={error} />
@@ -323,7 +330,7 @@ export default function NewMovement() {
             <div className="text-center text-[14px] font-medium text-ios-label2">Uploading photos…</div>
           )}
           <Button type="submit" full loading={saving}>
-            Save movement
+            {isRent ? 'Save rental' : 'Save movement'}
           </Button>
         </div>
       </form>

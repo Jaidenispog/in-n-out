@@ -52,8 +52,15 @@ export default function AppShell() {
       <Sheet open={actionOpen} onClose={() => setActionOpen(false)} title="Quick add">
         <div className="flex flex-col gap-2">
           <ActionRow
-            icon={<IconArrowDown size={22} />}
+            icon={<IconCar size={22} />}
             iconBg="bg-ios-blue"
+            title="Rent a car out"
+            subtitle="Our car out on rent — driver, rego, photos"
+            onClick={() => go('/rent')}
+          />
+          <ActionRow
+            icon={<IconArrowDown size={22} />}
+            iconBg="bg-ios-gray"
             title="New movement"
             subtitle="Customer car in · our car out"
             onClick={() => go('/new')}

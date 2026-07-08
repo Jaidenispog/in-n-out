@@ -193,8 +193,8 @@ export default function Dashboard() {
           )}
 
           <div className="mt-4 flex gap-3">
-            <Button className="flex-1" onClick={() => navigate('/new')}>
-              New movement
+            <Button className="flex-1" onClick={() => navigate('/rent')}>
+              Rent a car out
             </Button>
             <Button variant="secondary" className="flex-1" onClick={() => navigate('/return')}>
               Record return
@@ -202,17 +202,13 @@ export default function Dashboard() {
           </div>
 
           <div className="mt-3 flex gap-3">
-            <Button variant="secondary" className="flex-1 text-[15px]!" onClick={() => navigate('/today?view=out')}>
-              Cars out today
+            <Button variant="secondary" className="flex-1 text-[15px]!" onClick={() => navigate('/new')}>
+              New movement
             </Button>
-            <Button variant="secondary" className="flex-1 text-[15px]!" onClick={() => navigate('/today?view=in')}>
-              Customer cars in
+            <Button variant="secondary" className="flex-1 text-[15px]!" onClick={() => navigate('/intake')}>
+              Customer car intake
             </Button>
           </div>
-
-          <Button variant="secondary" full className="mt-3" onClick={() => navigate('/intake')}>
-            Customer car intake
-          </Button>
 
           <SectionHeader action={<button type="button" onClick={() => navigate('/audit')} className="text-[15px] font-medium text-ios-blue active:opacity-60">See all</button>}>Recent activity</SectionHeader>
           <Card>
