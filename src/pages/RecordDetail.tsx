@@ -197,8 +197,58 @@ function VehicleView({ v }: { v: Vehicle }) {
       <Row label="Make & model" value={[v.make, v.model].filter(Boolean).join(' ')} />
       <Row label="Type" value={v.vehicle_type} />
       <Row label="Ownership" value={v.is_company_car ? 'Fleet car' : 'Customer car'} />
-      <Row label="Notes" value={v.notes} />
     </Card>
+  )
+}
+
+// Editable notes for a rego, always visible on the car record (service history,
+// damage, reminders). Saves straight to the vehicle without full edit mode.
+function VehicleNotes({ vehicle, staffId }: { vehicle: Vehicle; staffId: string }) {
+  const [notes, setNotes] = useState(vehicle.notes || '')
+  const [draft, setDraft] = useState(notes)
+  const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState('')
+  async function save() {
+    setSaving(true); setErr('')
+    try {
+      const next = draft.trim()
+      await updateVehicle(vehicle.id, { notes: next }, staffId)
+      setNotes(next); setEditing(false)
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not save notes')
+    } finally {
+      setSaving(false)
+    }
+  }
+  return (
+    <>
+      <SectionHeader
+        action={!editing ? (
+          <button type="button" onClick={() => { setDraft(notes); setEditing(true) }} className="text-[15px] font-medium text-ios-blue active:opacity-60">
+            {notes ? 'Edit' : 'Add'}
+          </button>
+        ) : undefined}
+      >
+        Notes
+      </SectionHeader>
+      <Card className="mb-3 p-4">
+        <ErrorBanner message={err} />
+        {editing ? (
+          <div className="flex flex-col gap-3">
+            <TextArea value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Service history, damage, reminders — anything about this car…" />
+            <div className="flex gap-2">
+              <Button variant="secondary" className="flex-1" onClick={() => setEditing(false)}>Cancel</Button>
+              <Button className="flex-1" loading={saving} onClick={save}>Save</Button>
+            </div>
+          </div>
+        ) : (
+          <div className="text-[15px] whitespace-pre-wrap">
+            {notes ? notes : <span className="text-ios-gray">No notes yet.</span>}
+          </div>
+        )}
+      </Card>
+    </>
   )
 }
 
@@ -512,6 +562,7 @@ export default function RecordDetail() {
               {rec.kind === 'return' && <ReturnView r={rec.row} onOpenMovement={(mid) => navigate(`/record/movement/${mid}`)} />}
               {rec.kind === 'booking' && <BookingView b={rec.row} />}
               {rec.kind === 'vehicle' && <VehicleView v={rec.row} />}
+              {rec.kind === 'vehicle' && <VehicleNotes vehicle={rec.row} staffId={staffId} />}
               {rec.kind === 'vehicle' && <VehicleRentalHistory rego={rec.row.rego} />}
 
               {(rec.kind === 'movement' || rec.kind === 'return') && rec.row.source_sheet !== '' && rec.row.source_row !== null && (
