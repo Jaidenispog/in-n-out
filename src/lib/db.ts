@@ -5,7 +5,7 @@ import { supabase } from './supabase'
 import { normRego, normPhone, startOfTodayISO, endOfTodayISO, localDateOf, localTimeOf, todayLocalDate } from './utils'
 import type {
   Activity, AuditLog, Booking, DashboardStats, Movement, RegoConflict,
-  Return, SearchResults, StaffUser, Vehicle,
+  RentalPeriod, Return, SearchResults, StaffUser, Vehicle,
 } from './types'
 
 function must<T>(data: T | null, error: { message: string } | null): T {
@@ -301,6 +301,60 @@ export async function listReturnsByRego(rego: string): Promise<Return[]> {
     .order('created_at', { ascending: false })
     .limit(100)
   return must(data, error)
+}
+
+/**
+ * Full "chain of custody" for a fleet car: every period it was out to a client.
+ * Each out-movement (cars_out_rego = rego) becomes a period; its linked return
+ * gives the back date. Returns not tied to a listed out-movement are appended so
+ * nothing is lost. Newest first. Used to trace who had a car when (e.g. fines).
+ */
+export async function listRentalHistoryByRego(rego: string): Promise<RentalPeriod[]> {
+  const clean = normRego(rego)
+  if (!clean) return []
+  const [mRes, rRes] = await Promise.all([
+    supabase.from('vehicle_movements').select('*').eq('cars_out_rego', clean).limit(500),
+    supabase.from('vehicle_returns').select('*').eq('returned_rego', clean).limit(500),
+  ])
+  const movements = must(mRes.data, mRes.error) as Movement[]
+  const returns = must(rRes.data, rRes.error) as Return[]
+
+  const retByMovement = new Map<string, Return>()
+  for (const r of returns) if (r.movement_id) retByMovement.set(r.movement_id, r)
+  const movementIds = new Set(movements.map((m) => m.id))
+
+  const periods: RentalPeriod[] = movements.map((m) => {
+    const ret = retByMovement.get(m.id) ?? null
+    return {
+      id: m.id,
+      movementId: m.id,
+      driverName: m.driver_name || m.driver_collecting_raw || '',
+      driverPhone: m.driver_phone || '',
+      purpose: m.purpose,
+      outAt: m.moved_at ?? m.movement_date ?? m.created_at,
+      backAt: ret?.returned_at ?? ret?.return_date ?? null,
+      ongoing: m.status === 'active' && !ret,
+    }
+  })
+
+  // Returns for this car with no matching out-movement in our list — surface them.
+  for (const r of returns) {
+    if (r.movement_id && movementIds.has(r.movement_id)) continue
+    periods.push({
+      id: r.id,
+      movementId: r.movement_id,
+      driverName: r.driver_name || '',
+      driverPhone: r.mobile_number || '',
+      purpose: '',
+      outAt: null,
+      backAt: r.returned_at ?? r.return_date ?? null,
+      ongoing: false,
+    })
+  }
+
+  // Newest first, keyed on the out date (or return date when there's no out record).
+  periods.sort((a, b) => (b.outAt ?? b.backAt ?? '').localeCompare(a.outAt ?? a.backAt ?? ''))
+  return periods
 }
 
 // ----------------------------------------------------------------- today

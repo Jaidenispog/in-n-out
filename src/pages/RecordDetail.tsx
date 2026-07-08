@@ -5,12 +5,11 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { PURPOSE_OPTIONS } from '../lib/types'
-import type { Activity, Booking, Movement, MovementStatus, Return, Vehicle, VehicleStatus } from '../lib/types'
-import { bookingStatusLabel, bookingStatusTone, formatDateTime, localDateOf, localTimeOf, movementStatusLabel, movementStatusTone, normRego, purposeLabel, purposeTone, timeAgo, vehicleStatusLabel, vehicleStatusTone } from '../lib/utils'
-import { cancelBooking, createMovement, getBooking, getMovement, getRawImportRow, getReturn, historyForRecord, listReturnsByRego, listVehicles, setVehicleStatusByRego, updateBooking, updateMovement, updateReturn, updateVehicle } from '../lib/db'
+import type { Activity, Booking, Movement, MovementStatus, RentalPeriod, Return, Vehicle, VehicleStatus } from '../lib/types'
+import { bookingStatusLabel, bookingStatusTone, formatDate, formatDateTime, formatDuration, localDateOf, localTimeOf, movementStatusLabel, movementStatusTone, normRego, purposeLabel, purposeTone, timeAgo, vehicleStatusLabel, vehicleStatusTone } from '../lib/utils'
+import { cancelBooking, createMovement, getBooking, getMovement, getRawImportRow, getReturn, historyForRecord, listRentalHistoryByRego, listVehicles, setVehicleStatusByRego, updateBooking, updateMovement, updateReturn, updateVehicle } from '../lib/db'
 import { Badge, Button, Card, ErrorBanner, Field, IconChevronLeft, Input, ListRow, LoadingScreen, PageTitle, SectionHeader, SegmentedControl, Spinner, TextArea } from '../components/ui'
 import { PhotoSection } from '../components/PhotoPicker'
-import { ReturnCard } from '../components/cards'
 
 type Rec = { kind: 'movement'; row: Movement } | { kind: 'return'; row: Return } | { kind: 'booking'; row: Booking } | { kind: 'vehicle'; row: Vehicle }
 
@@ -203,21 +202,57 @@ function VehicleView({ v }: { v: Vehicle }) {
   )
 }
 
-function VehicleReturnHistory({ rego }: { rego: string }) {
-  const [returns, setReturns] = useState<Return[]>([])
+function RentalPeriodRow({ p, onOpen }: { p: RentalPeriod; onOpen: () => void }) {
+  const nowISO = new Date().toISOString()
+  const endISO = p.ongoing ? nowISO : p.backAt
+  const dur = p.outAt ? formatDuration(p.outAt, endISO) : ''
+  const dates = p.outAt
+    ? `${formatDate(p.outAt)} → ${p.ongoing ? 'now' : p.backAt ? formatDate(p.backAt) : 'not recorded'}`
+    : p.backAt ? `Returned ${formatDate(p.backAt)}` : 'Date not recorded'
+  const badge = p.ongoing
+    ? <Badge tone="red">Still out</Badge>
+    : p.outAt && p.backAt ? <Badge tone="green">Returned</Badge>
+    : p.outAt ? <Badge tone="orange">No return</Badge>
+    : <Badge tone="gray">Return only</Badge>
+  return (
+    <ListRow
+      onClick={p.movementId ? onOpen : undefined}
+      title={p.driverName || 'No driver recorded'}
+      subtitle={
+        <>
+          {dates}{dur ? ` · ${dur}` : ''}
+          {p.driverPhone ? <span className="block text-ios-gray">{p.driverPhone}</span> : null}
+        </>
+      }
+      right={badge}
+    />
+  )
+}
+
+function VehicleRentalHistory({ rego }: { rego: string }) {
+  const navigate = useNavigate()
+  const [periods, setPeriods] = useState<RentalPeriod[]>([])
   const [loaded, setLoaded] = useState(false)
   useEffect(() => {
     let cancelled = false
-    listReturnsByRego(rego)
-      .then((r) => { if (!cancelled) { setReturns(r); setLoaded(true) } })
+    listRentalHistoryByRego(rego)
+      .then((p) => { if (!cancelled) { setPeriods(p); setLoaded(true) } })
       .catch(() => { if (!cancelled) setLoaded(true) })
     return () => { cancelled = true }
   }, [rego])
-  if (!loaded || returns.length === 0) return null
+  if (!loaded) return null
   return (
     <>
-      <SectionHeader>Return history ({returns.length})</SectionHeader>
-      <Card className="mb-3">{returns.map((r) => <ReturnCard key={r.id} ret={r} />)}</Card>
+      <SectionHeader>Rental history{periods.length ? ` (${periods.length})` : ''}</SectionHeader>
+      <Card className="mb-3">
+        {periods.length === 0 ? (
+          <div className="px-4 py-3 text-[15px] text-ios-gray">This car has never been recorded going out.</div>
+        ) : (
+          periods.map((p) => (
+            <RentalPeriodRow key={p.id} p={p} onOpen={() => p.movementId && navigate(`/record/movement/${p.movementId}`)} />
+          ))
+        )}
+      </Card>
     </>
   )
 }
@@ -477,7 +512,7 @@ export default function RecordDetail() {
               {rec.kind === 'return' && <ReturnView r={rec.row} onOpenMovement={(mid) => navigate(`/record/movement/${mid}`)} />}
               {rec.kind === 'booking' && <BookingView b={rec.row} />}
               {rec.kind === 'vehicle' && <VehicleView v={rec.row} />}
-              {rec.kind === 'vehicle' && <VehicleReturnHistory rego={rec.row.rego} />}
+              {rec.kind === 'vehicle' && <VehicleRentalHistory rego={rec.row.rego} />}
 
               {(rec.kind === 'movement' || rec.kind === 'return') && rec.row.source_sheet !== '' && rec.row.source_row !== null && (
                 <RawImportCard key={rec.row.id} sheet={rec.row.source_sheet} row={rec.row.source_row} />

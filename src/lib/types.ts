@@ -15,6 +15,18 @@ export const PURPOSE_OPTIONS: { value: Purpose; label: string }[] = [
   { value: 'OTHER', label: 'Other' },
 ]
 
+/** One period a fleet car was out to a client — a movement plus its return (if any). */
+export interface RentalPeriod {
+  id: string
+  movementId: string | null
+  driverName: string
+  driverPhone: string
+  purpose: Purpose
+  outAt: string | null
+  backAt: string | null
+  ongoing: boolean
+}
+
 export interface StaffUser {
   id: string
   email: string

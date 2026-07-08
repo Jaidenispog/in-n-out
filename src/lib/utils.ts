@@ -72,6 +72,23 @@ export function timeAgo(iso: string): string {
   return `${Math.floor(s / 86400)}d ago`
 }
 
+/** Human-readable span between two instants, e.g. "5 days", "3 months", "1 yr 2 mo". */
+export function formatDuration(fromISO: string | null | undefined, toISO: string | null | undefined): string {
+  if (!fromISO || !toISO) return ''
+  const from = new Date(fromISO.length === 10 ? fromISO + 'T12:00:00' : fromISO).getTime()
+  const to = new Date(toISO.length === 10 ? toISO + 'T12:00:00' : toISO).getTime()
+  if (isNaN(from) || isNaN(to) || to < from) return ''
+  const days = Math.round((to - from) / 86_400_000)
+  if (days === 0) return 'same day'
+  if (days === 1) return '1 day'
+  if (days < 60) return `${days} days`
+  const months = Math.round(days / 30.44)
+  if (months < 24) return `${months} months`
+  const years = Math.floor(months / 12)
+  const rem = months % 12
+  return rem ? `${years} yr ${rem} mo` : `${years} yr`
+}
+
 // Status → badge tone (maps to ui.tsx <Badge tone=...>)
 export type Tone = 'green' | 'red' | 'orange' | 'blue' | 'gray' | 'purple'
 
