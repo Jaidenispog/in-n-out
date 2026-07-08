@@ -110,6 +110,7 @@ export interface NewMovementInput {
   purpose: string
   moved_at: string // ISO
   notes: string
+  staffName?: string
   staffId: string
 }
 
@@ -140,6 +141,7 @@ export async function createMovement(input: NewMovementInput): Promise<Movement>
       movement_date: localDateOf(input.moved_at),
       movement_time: localTimeOf(input.moved_at),
       status: 'active',
+      staff_name: (input.staffName ?? '').trim(),
       notes: input.notes,
       created_by: input.staffId,
       updated_by: input.staffId,
@@ -214,6 +216,7 @@ export interface NewReturnInput {
   returned_at: string // ISO
   bond_status: string
   notes: string
+  staffName?: string
   staffId: string
 }
 
@@ -239,6 +242,7 @@ export async function createReturn(input: NewReturnInput): Promise<{ ret: Return
       return_date: localDateOf(input.returned_at),
       return_time: localTimeOf(input.returned_at),
       bond_status: input.bond_status,
+      staff_name: (input.staffName ?? '').trim(),
       notes: input.notes,
       created_by: input.staffId,
       updated_by: input.staffId,

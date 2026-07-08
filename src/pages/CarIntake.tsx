@@ -21,6 +21,7 @@ export default function CarIntake() {
   const [rego, setRego] = useState('')
   const [at, setAt] = useState(nowLocalInputValue())
   const [notes, setNotes] = useState('')
+  const [staffName, setStaffName] = useState('')
   const [damageFiles, setDamageFiles] = useState<File[]>([])
   const [reportFiles, setReportFiles] = useState<File[]>([])
   const [saving, setSaving] = useState(false)
@@ -45,6 +46,7 @@ export default function CarIntake() {
         purpose: 'INTAKE',
         moved_at: iso,
         notes,
+        staffName,
         staffId,
       })
       try {
@@ -78,6 +80,9 @@ export default function CarIntake() {
       <ErrorBanner message={error} />
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <Field label="Staff name">
+          <Input value={staffName} onChange={(e) => setStaffName(e.target.value)} placeholder="Your name — defaults to Staff" autoCapitalize="words" />
+        </Field>
         <Field label="Customer name">
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" autoComplete="off" />
         </Field>

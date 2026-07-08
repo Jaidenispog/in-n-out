@@ -81,6 +81,7 @@ export interface Movement {
   client_details_raw: string
   driver_collecting_raw: string
   signed_off: string
+  staff_name: string
   notes: string
   source_sheet: string
   source_row: number | null
@@ -105,6 +106,7 @@ export interface Return {
   return_date: string | null
   return_time: string
   bond_status: string
+  staff_name: string
   notes: string
   needs_review: boolean
   review_reason: string

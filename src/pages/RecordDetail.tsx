@@ -6,7 +6,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { PURPOSE_OPTIONS } from '../lib/types'
 import type { Activity, Booking, Movement, MovementStatus, RentalPeriod, Return, Vehicle, VehicleStatus } from '../lib/types'
-import { bookingStatusLabel, bookingStatusTone, formatDate, formatDateTime, formatDuration, localDateOf, localTimeOf, movementStatusLabel, movementStatusTone, normRego, purposeLabel, purposeTone, timeAgo, vehicleStatusLabel, vehicleStatusTone } from '../lib/utils'
+import { bookingStatusLabel, bookingStatusTone, formatDate, formatDateTime, formatDuration, localDateOf, localTimeOf, movementStatusLabel, movementStatusTone, normRego, purposeLabel, purposeTone, staffLabel, timeAgo, vehicleStatusLabel, vehicleStatusTone } from '../lib/utils'
 import { cancelBooking, createMovement, getBooking, getMovement, getRawImportRow, getReturn, historyForRecord, listRentalHistoryByRego, listVehicles, setVehicleStatusByRego, updateBooking, updateMovement, updateReturn, updateVehicle } from '../lib/db'
 import { Badge, Button, Card, ErrorBanner, Field, IconChevronLeft, Input, ListRow, LoadingScreen, PageTitle, SectionHeader, SegmentedControl, Spinner, TextArea } from '../components/ui'
 import { PhotoSection } from '../components/PhotoPicker'
@@ -113,6 +113,7 @@ function MovementView({ m }: { m: Movement }) {
         <Badge tone={movementStatusTone[m.status]}>{movementStatusLabel[m.status]}</Badge>
         {m.purpose && <Badge tone={purposeTone[m.purpose] ?? 'gray'}>{purposeLabel(m.purpose)}</Badge>}
       </div>
+      <Row label="Staff" value={staffLabel(m.staff_name)} />
       <Row label="Driver" value={m.driver_name} />
       <Row label="Phone" value={tel(m.driver_phone)} />
       <Row label="Car in (customer)" value={m.cars_in_rego} />
@@ -135,6 +136,7 @@ function IntakeView({ m }: { m: Movement }) {
       <div className="flex flex-wrap gap-2 border-b border-ios-sep px-4 py-3">
         <Badge tone="orange">Customer car in</Badge>
       </div>
+      <Row label="Staff" value={staffLabel(m.staff_name)} />
       <Row label="Customer" value={m.driver_name} />
       <Row label="Phone" value={tel(m.driver_phone)} />
       <Row label="Car rego" value={m.cars_in_rego} />
@@ -152,6 +154,7 @@ function ReturnView({ r, onOpenMovement }: { r: Return; onOpenMovement: (id: str
     <>
       <Card className="mb-3">
         <Row label="Rego returned" value={r.returned_rego || r.returned_rego_raw} />
+        <Row label="Staff" value={staffLabel(r.staff_name)} />
         <Row label="Driver" value={r.driver_name} />
         <Row label="Mobile" value={tel(r.mobile_number)} />
         <Row label="Returned" value={when} />
@@ -313,6 +316,7 @@ function MovementEdit({ m, saving, onSave }: { m: Movement; saving: boolean; onS
   const [f, setF] = useState({
     driver_name: m.driver_name, driver_phone: m.driver_phone, cars_in_rego: m.cars_in_rego,
     cars_out_rego: m.cars_out_rego, purpose: m.purpose, status: m.status, notes: m.notes, signed_off: m.signed_off,
+    staff_name: m.staff_name || '',
   })
   return (
     <Card className="mb-3 flex flex-col gap-4 p-4">
@@ -322,12 +326,13 @@ function MovementEdit({ m, saving, onSave }: { m: Movement; saving: boolean; onS
       <FI label="Car out (loan rego)" upper value={f.cars_out_rego} onChange={(v) => setF({ ...f, cars_out_rego: v })} />
       <Field label="Purpose"><SegmentedControl options={PURPOSE_OPTIONS} value={f.purpose} onChange={(v) => setF({ ...f, purpose: v })} /></Field>
       <Field label="Status"><SegmentedControl options={MOVE_STATUS} value={f.status} onChange={(v) => setF({ ...f, status: v })} /></Field>
+      <FI label="Staff name" value={f.staff_name} onChange={(v) => setF({ ...f, staff_name: v })} />
       <FI label="Signed off by" value={f.signed_off} onChange={(v) => setF({ ...f, signed_off: v })} />
       <Notes value={f.notes} onChange={(v) => setF({ ...f, notes: v })} />
       <Button full loading={saving} onClick={() => onSave({
         driver_name: f.driver_name.trim(), driver_phone: f.driver_phone.trim(),
         cars_in_rego: normRego(f.cars_in_rego), cars_out_rego: normRego(f.cars_out_rego),
-        purpose: f.purpose, status: f.status, notes: f.notes, signed_off: f.signed_off,
+        purpose: f.purpose, status: f.status, notes: f.notes, signed_off: f.signed_off, staff_name: f.staff_name.trim(),
       })}>Save changes</Button>
     </Card>
   )
@@ -337,9 +342,11 @@ function IntakeEdit({ m, saving, onSave }: { m: Movement; saving: boolean; onSav
   const [f, setF] = useState({
     driver_name: m.driver_name, driver_phone: m.driver_phone, cars_in_rego: m.cars_in_rego,
     moved_at: isoToInput(m.moved_at), notes: m.notes,
+    staff_name: m.staff_name || '',
   })
   return (
     <Card className="mb-3 flex flex-col gap-4 p-4">
+      <FI label="Staff name" value={f.staff_name} onChange={(v) => setF({ ...f, staff_name: v })} />
       <FI label="Customer name" value={f.driver_name} onChange={(v) => setF({ ...f, driver_name: v })} />
       <FI label="Mobile" value={f.driver_phone} onChange={(v) => setF({ ...f, driver_phone: v })} />
       <FI label="Car rego" upper value={f.cars_in_rego} onChange={(v) => setF({ ...f, cars_in_rego: v })} />
@@ -349,7 +356,7 @@ function IntakeEdit({ m, saving, onSave }: { m: Movement; saving: boolean; onSav
         const iso = inputToISO(f.moved_at)
         onSave({
           driver_name: f.driver_name.trim(), driver_phone: f.driver_phone.trim(),
-          cars_in_rego: normRego(f.cars_in_rego), notes: f.notes,
+          cars_in_rego: normRego(f.cars_in_rego), notes: f.notes, staff_name: f.staff_name.trim(),
           ...(iso ? { moved_at: iso, movement_date: localDateOf(iso), movement_time: localTimeOf(iso) } : {}),
         })
       }}>Save changes</Button>
@@ -361,17 +368,19 @@ function ReturnEdit({ r, saving, onSave }: { r: Return; saving: boolean; onSave:
   const [f, setF] = useState({
     driver_name: r.driver_name, mobile_number: r.mobile_number,
     returned_rego: r.returned_rego, bond_status: r.bond_status, notes: r.notes,
+    staff_name: r.staff_name || '',
   })
   return (
     <Card className="mb-3 flex flex-col gap-4 p-4">
       <FI label="Driver name" value={f.driver_name} onChange={(v) => setF({ ...f, driver_name: v })} />
       <FI label="Mobile" value={f.mobile_number} onChange={(v) => setF({ ...f, mobile_number: v })} />
       <FI label="Rego returned" upper value={f.returned_rego} onChange={(v) => setF({ ...f, returned_rego: v })} />
+      <FI label="Staff name" value={f.staff_name} onChange={(v) => setF({ ...f, staff_name: v })} />
       <FI label="Bond" value={f.bond_status} onChange={(v) => setF({ ...f, bond_status: v })} />
       <Notes value={f.notes} onChange={(v) => setF({ ...f, notes: v })} />
       <Button full loading={saving} onClick={() => onSave({
         driver_name: f.driver_name.trim(), mobile_number: f.mobile_number.trim(),
-        returned_rego: normRego(f.returned_rego), bond_status: f.bond_status, notes: f.notes,
+        returned_rego: normRego(f.returned_rego), bond_status: f.bond_status, notes: f.notes, staff_name: f.staff_name.trim(),
       })}>Save changes</Button>
     </Card>
   )

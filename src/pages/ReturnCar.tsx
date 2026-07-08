@@ -23,6 +23,7 @@ export default function ReturnCar() {
   const [returnedAt, setReturnedAt] = useState(nowLocalInputValue())
   const [bondStatus, setBondStatus] = useState('')
   const [notes, setNotes] = useState('')
+  const [staffName, setStaffName] = useState('')
   const [files, setFiles] = useState<File[]>([])
 
   const [match, setMatch] = useState<Movement | null>(null)
@@ -78,6 +79,7 @@ export default function ReturnCar() {
         returned_at: iso,
         bond_status: bondStatus,
         notes,
+        staffName,
         staffId,
       })
       try {
@@ -107,6 +109,15 @@ export default function ReturnCar() {
       <ErrorBanner message={error} />
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <Field label="Staff name">
+          <Input
+            value={staffName}
+            onChange={(e) => setStaffName(e.target.value)}
+            placeholder="Your name — defaults to Staff"
+            autoCapitalize="words"
+          />
+        </Field>
+
         <div>
           <Field label="Returned car rego">
             <Input

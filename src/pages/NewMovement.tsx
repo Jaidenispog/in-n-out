@@ -61,6 +61,7 @@ export default function NewMovement() {
   const [purpose, setPurpose] = useState<Purpose>('RENT')
   const [dt, setDt] = useState(nowLocalInputValue())
   const [notes, setNotes] = useState('')
+  const [staffName, setStaffName] = useState('')
   const [files, setFiles] = useState<File[]>([]) // our car (cars out)
   const [theirFiles, setTheirFiles] = useState<File[]>([]) // their car (cars in)
 
@@ -144,6 +145,7 @@ export default function NewMovement() {
           purpose,
           moved_at: new Date(dt).toISOString(),
           notes,
+          staffName,
           staffId,
         })
         id = movement.id
@@ -182,6 +184,15 @@ export default function NewMovement() {
           void handleSubmit()
         }}
       >
+        <Field label="Staff name">
+          <Input
+            value={staffName}
+            onChange={(e) => setStaffName(e.target.value)}
+            placeholder="Your name — defaults to Staff"
+            autoCapitalize="words"
+          />
+        </Field>
+
         <Field label="Driver name">
           <Input
             value={driverName}

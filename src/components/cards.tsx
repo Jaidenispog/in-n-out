@@ -31,6 +31,7 @@ export function MovementCard({ movement }: { movement: Movement }) {
           {movement.driver_name || movement.client_details_raw || 'No driver recorded'}
           {' · '}
           {formatDateTime(movement.moved_at ?? movement.created_at)}
+          {movement.staff_name && movement.staff_name.trim() ? ` · by ${movement.staff_name.trim()}` : ''}
         </>
       }
       right={
@@ -55,6 +56,7 @@ export function ReturnCard({ ret }: { ret: Return }) {
           {ret.driver_name || ret.driver_name_raw || 'No driver recorded'}
           {' · '}
           {formatDateTime(ret.returned_at ?? ret.created_at)}
+          {ret.staff_name && ret.staff_name.trim() ? ` · by ${ret.staff_name.trim()}` : ''}
         </>
       }
       right={<Badge tone="green">Returned</Badge>}

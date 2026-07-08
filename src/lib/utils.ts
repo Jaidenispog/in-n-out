@@ -3,6 +3,9 @@ import type { BookingStatus, MovementStatus, Purpose, VehicleStatus } from './ty
 // "1pi3xz " -> "1PI3XZ"
 export const normRego = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, '')
 
+/** Display name for who recorded an entry — the typed staff name, else "Staff". */
+export const staffLabel = (name: string | null | undefined): string => (name && name.trim()) || 'Staff'
+
 export const normPhone = (s: string) => {
   let d = s.replace(/\D/g, '')
   if (d.length === 11 && d.startsWith('61')) d = '0' + d.slice(2)
