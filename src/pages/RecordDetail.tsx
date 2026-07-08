@@ -271,12 +271,14 @@ function RentalPeriodRow({ p, onOpen }: { p: RentalPeriod; onOpen: () => void })
     : <Badge tone="gray">Return only</Badge>
   return (
     <ListRow
-      onClick={p.movementId ? onOpen : undefined}
+      onClick={p.movementId || p.returnId ? onOpen : undefined}
       title={p.driverName || 'No driver recorded'}
       subtitle={
         <>
           {dates}{dur ? ` · ${dur}` : ''}
           {p.driverPhone ? <span className="block text-ios-gray">{p.driverPhone}</span> : null}
+          {p.notes ? <span className="mt-0.5 block text-ios-label2">Note: {p.notes}</span> : null}
+          {p.returnNotes ? <span className="mt-0.5 block text-ios-label2">Return note: {p.returnNotes}</span> : null}
         </>
       }
       right={badge}
@@ -304,7 +306,14 @@ function VehicleRentalHistory({ rego }: { rego: string }) {
           <div className="px-4 py-3 text-[15px] text-ios-gray">This car has never been recorded going out.</div>
         ) : (
           periods.map((p) => (
-            <RentalPeriodRow key={p.id} p={p} onOpen={() => p.movementId && navigate(`/record/movement/${p.movementId}`)} />
+            <RentalPeriodRow
+              key={p.id}
+              p={p}
+              onOpen={() => {
+                if (p.movementId) navigate(`/record/movement/${p.movementId}`)
+                else if (p.returnId) navigate(`/record/return/${p.returnId}`)
+              }}
+            />
           ))
         )}
       </Card>

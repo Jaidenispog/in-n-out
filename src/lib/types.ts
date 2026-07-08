@@ -19,12 +19,15 @@ export const PURPOSE_OPTIONS: { value: Purpose; label: string }[] = [
 export interface RentalPeriod {
   id: string
   movementId: string | null
+  returnId: string | null
   driverName: string
   driverPhone: string
   purpose: Purpose
   outAt: string | null
   backAt: string | null
   ongoing: boolean
+  notes: string // from the movement (Sheet22)
+  returnNotes: string // from the return (car return sheet)
 }
 
 export interface StaffUser {

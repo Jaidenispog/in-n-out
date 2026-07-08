@@ -313,9 +313,11 @@ export async function listReturnsByRego(rego: string): Promise<Return[]> {
 
 /**
  * Full "chain of custody" for a fleet car: every period it was out to a client.
- * Each out-movement (cars_out_rego = rego) becomes a period; its linked return
- * gives the back date. Returns not tied to a listed out-movement are appended so
- * nothing is lost. Newest first. Used to trace who had a car when (e.g. fines).
+ * Each out-movement (cars_out_rego = rego) becomes a period, paired with its
+ * return for the back date + notes. Most imported returns aren't linked by id, so
+ * we also pair chronologically (earliest out claims the earliest later return).
+ * Unpaired returns are still surfaced. Newest first. Used to trace who had a car
+ * when (e.g. fines) and to read the sheet notes for each person.
  */
 export async function listRentalHistoryByRego(rego: string): Promise<RentalPeriod[]> {
   const clean = normRego(rego)
@@ -327,36 +329,69 @@ export async function listRentalHistoryByRego(rego: string): Promise<RentalPerio
   const movements = must(mRes.data, mRes.error) as Movement[]
   const returns = must(rRes.data, rRes.error) as Return[]
 
-  const retByMovement = new Map<string, Return>()
-  for (const r of returns) if (r.movement_id) retByMovement.set(r.movement_id, r)
+  const ts = (v: string | null | undefined): number => {
+    if (!v) return NaN
+    return new Date(v.length === 10 ? v + 'T12:00:00' : v).getTime()
+  }
+  const outTs = (m: Movement) => ts(m.moved_at ?? m.movement_date ?? m.created_at)
+  const backTs = (r: Return) => ts(r.returned_at ?? r.return_date ?? r.created_at)
+
   const movementIds = new Set(movements.map((m) => m.id))
+  const pairOf = new Map<string, Return>() // movement.id -> its return
+  const usedReturns = new Set<string>()
+
+  // 1. Explicit links first (return.movement_id points at one of this car's movements).
+  for (const r of returns) {
+    if (r.movement_id && movementIds.has(r.movement_id) && !pairOf.has(r.movement_id)) {
+      pairOf.set(r.movement_id, r)
+      usedReturns.add(r.id)
+    }
+  }
+
+  // 2. Chronological pairing for the rest — earliest out claims the earliest
+  // still-unused return on/after it (1-day slop for messy data entry).
+  const DAY = 86_400_000
+  const movesByOut = [...movements].sort((a, b) => outTs(a) - outTs(b))
+  const returnsByBack = [...returns].sort((a, b) => backTs(a) - backTs(b))
+  for (const m of movesByOut) {
+    if (pairOf.has(m.id)) continue
+    const out = outTs(m)
+    const match = returnsByBack.find((r) => !usedReturns.has(r.id) && (isNaN(out) || backTs(r) >= out - DAY))
+    if (match) { pairOf.set(m.id, match); usedReturns.add(match.id) }
+  }
 
   const periods: RentalPeriod[] = movements.map((m) => {
-    const ret = retByMovement.get(m.id) ?? null
+    const r = pairOf.get(m.id) ?? null
     return {
       id: m.id,
       movementId: m.id,
-      driverName: m.driver_name || m.driver_collecting_raw || '',
-      driverPhone: m.driver_phone || '',
+      returnId: r?.id ?? null,
+      driverName: m.driver_name || m.driver_collecting_raw || r?.driver_name || '',
+      driverPhone: m.driver_phone || r?.mobile_number || '',
       purpose: m.purpose,
       outAt: m.moved_at ?? m.movement_date ?? m.created_at,
-      backAt: ret?.returned_at ?? ret?.return_date ?? null,
-      ongoing: m.status === 'active' && !ret,
+      backAt: r ? (r.returned_at ?? r.return_date) : null,
+      ongoing: m.status === 'active' && !r,
+      notes: m.notes || '',
+      returnNotes: r?.notes || '',
     }
   })
 
-  // Returns for this car with no matching out-movement in our list — surface them.
+  // Returns we couldn't pair to any out-movement — surface so nothing is lost.
   for (const r of returns) {
-    if (r.movement_id && movementIds.has(r.movement_id)) continue
+    if (usedReturns.has(r.id)) continue
     periods.push({
       id: r.id,
-      movementId: r.movement_id,
+      movementId: null,
+      returnId: r.id,
       driverName: r.driver_name || '',
       driverPhone: r.mobile_number || '',
       purpose: '',
       outAt: null,
       backAt: r.returned_at ?? r.return_date ?? null,
       ongoing: false,
+      notes: '',
+      returnNotes: r.notes || '',
     })
   }
 
