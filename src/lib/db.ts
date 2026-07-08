@@ -279,6 +279,30 @@ export async function listReturns(limit = 50): Promise<Return[]> {
   return must(data, error)
 }
 
+// ----------------------------------------------------------------- today
+
+/** Movements recorded today — drives the "Cars out today" / "Customer cars in" views. */
+export async function listTodaysMovements(): Promise<Movement[]> {
+  const { data, error } = await supabase
+    .from('vehicle_movements')
+    .select('*')
+    .gte('created_at', startOfTodayISO())
+    .order('created_at', { ascending: false })
+    .limit(500)
+  return must(data, error)
+}
+
+/** Returns recorded today (entered today, or dated today) — drives "Returned today". */
+export async function listTodaysReturns(): Promise<Return[]> {
+  const { data, error } = await supabase
+    .from('vehicle_returns')
+    .select('*')
+    .or(`created_at.gte.${startOfTodayISO()},return_date.eq.${todayLocalDate()}`)
+    .order('created_at', { ascending: false })
+    .limit(500)
+  return must(data, error)
+}
+
 // --------------------------------------------------------------- bookings
 
 export interface NewBookingInput {

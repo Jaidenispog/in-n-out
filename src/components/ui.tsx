@@ -1,5 +1,5 @@
 // Small Apple-style UI kit. Everything is plain Tailwind; big touch targets.
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import type { Tone } from '../lib/utils'
 
 // ------------------------------------------------------------------ icons
@@ -89,6 +89,12 @@ export const IconDoc = svg(
   <>
     <path d="M6 3h8l4 4v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" />
     <path d="M14 3v5h5M9 12h6M9 16h6" />
+  </>,
+)
+export const IconSort = svg(
+  <>
+    <path d="M3 6h11M3 12h8M3 18h5" />
+    <path d="M17 5v14m0 0 4-4m-4 4-4-4" />
   </>,
 )
 
@@ -256,6 +262,47 @@ export function SegmentedControl<T extends string>({
         </button>
       ))}
     </div>
+  )
+}
+
+// A compact "Sort by" control: a pill button that opens a Sheet of options.
+export function SortControl<T extends string>({
+  value,
+  onChange,
+  options,
+}: {
+  value: T
+  onChange: (v: T) => void
+  options: { value: T; label: string }[]
+}) {
+  const [open, setOpen] = useState(false)
+  const current = options.find((o) => o.value === value)
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex items-center gap-1.5 rounded-full bg-ios-gray5 px-3.5 py-1.5 text-[14px] font-semibold text-ios-label2 active:opacity-70"
+      >
+        <IconSort size={16} />
+        {current ? current.label : 'Sort'}
+      </button>
+      <Sheet open={open} onClose={() => setOpen(false)} title="Sort by">
+        <div className="flex flex-col">
+          {options.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              onClick={() => { onChange(o.value); setOpen(false) }}
+              className="flex items-center justify-between border-b border-ios-sep px-2 py-3.5 text-left last:border-b-0"
+            >
+              <span className={`text-[17px] ${o.value === value ? 'font-semibold text-ios-blue' : 'text-ios-label'}`}>{o.label}</span>
+              {o.value === value && <IconCheck size={20} className="text-ios-blue" />}
+            </button>
+          ))}
+        </div>
+      </Sheet>
+    </>
   )
 }
 

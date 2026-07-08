@@ -12,6 +12,7 @@ import SearchPage from './pages/SearchPage'
 import RecordDetail from './pages/RecordDetail'
 import ImportReview from './pages/ImportReview'
 import Settings from './pages/Settings'
+import Today from './pages/Today'
 
 function SetupNeeded() {
   return (
@@ -49,6 +50,7 @@ export default function App() {
             <Route path="/record/:type/:id" element={<RecordDetail />} />
             <Route path="/review" element={<ImportReview />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/today" element={<Today />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

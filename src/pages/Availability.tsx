@@ -8,10 +8,17 @@ import { normRego, startOfTodayISO, vehicleStatusLabel, vehicleStatusTone } from
 import type { Return, Vehicle } from '../lib/types'
 import {
   Badge, Button, Card, EmptyState, ErrorBanner, IconCar, Input, ListRow,
-  LoadingScreen, PageTitle, SegmentedControl,
+  LoadingScreen, PageTitle, SegmentedControl, SortControl,
 } from '../components/ui'
 
 type FilterKey = 'all' | 'available' | 'out' | 'booked' | 'returned' | 'repair' | 'review'
+type VSortKey = 'rego' | 'make' | 'status' | 'added'
+const VSORT_OPTS: { value: VSortKey; label: string }[] = [
+  { value: 'rego', label: 'Rego (A–Z)' },
+  { value: 'make', label: 'Make (A–Z)' },
+  { value: 'status', label: 'Status' },
+  { value: 'added', label: 'Recently added' },
+]
 
 function todayLocalYMD(): string {
   const d = new Date()
@@ -67,6 +74,7 @@ export default function Availability() {
     const valid: FilterKey[] = ['all', 'available', 'out', 'booked', 'returned', 'repair', 'review']
     return f && (valid as string[]).includes(f) ? (f as FilterKey) : 'all'
   })
+  const [sort, setSort] = useState<VSortKey>('rego')
   const [showCustomer, setShowCustomer] = useState(false)
 
   useEffect(() => {
@@ -156,6 +164,20 @@ export default function Availability() {
     }
   }, [searched, filter, returnedToday])
 
+  const sorted = useMemo(() => {
+    const arr = [...filtered]
+    switch (sort) {
+      case 'make':
+        return arr.sort((a, b) => (a.make || '~').localeCompare(b.make || '~') || a.rego.localeCompare(b.rego))
+      case 'status':
+        return arr.sort((a, b) => a.status.localeCompare(b.status) || a.rego.localeCompare(b.rego))
+      case 'added':
+        return arr.sort((a, b) => b.created_at.localeCompare(a.created_at))
+      default:
+        return arr.sort((a, b) => a.rego.localeCompare(b.rego))
+    }
+  }, [filtered, sort])
+
   if (loading) {
     return (
       <>
@@ -183,6 +205,10 @@ export default function Availability() {
         <SegmentedControl<FilterKey> options={filterOptions} value={filter} onChange={setFilter} />
       </div>
 
+      <div className="mt-2 flex justify-end">
+        <SortControl<VSortKey> value={sort} onChange={setSort} options={VSORT_OPTS} />
+      </div>
+
       {customerCount > 0 && (
         <Button variant="plain" full onClick={() => setShowCustomer((s) => !s)}>
           {showCustomer ? 'Hide customer cars' : `Show customer cars too (${customerCount})`}
@@ -190,7 +216,7 @@ export default function Availability() {
       )}
 
       <Card className={customerCount > 0 ? '' : 'mt-3'}>
-        {filtered.length === 0 ? (
+        {sorted.length === 0 ? (
           <EmptyState
             icon={<IconCar size={40} />}
             title="No cars found"
@@ -201,7 +227,7 @@ export default function Availability() {
             }
           />
         ) : (
-          filtered.map((v) => (
+          sorted.map((v) => (
             <VehicleRow key={v.id} vehicle={v} returnedToday={returnedToday.has(v.rego)} />
           ))
         )}

@@ -159,7 +159,7 @@ export default function Dashboard() {
                 label="Returned today"
                 tone="blue"
                 icon={<IconArrowDown size={18} />}
-                onClick={() => navigate('/cars?filter=returned')}
+                onClick={() => navigate('/today?view=returned')}
               />
               <StatCard
                 value={stats.goingOutToday}
@@ -191,6 +191,15 @@ export default function Dashboard() {
             </Button>
             <Button variant="secondary" className="flex-1" onClick={() => navigate('/return')}>
               Record return
+            </Button>
+          </div>
+
+          <div className="mt-3 flex gap-3">
+            <Button variant="secondary" className="flex-1 text-[15px]!" onClick={() => navigate('/today?view=out')}>
+              Cars out today
+            </Button>
+            <Button variant="secondary" className="flex-1 text-[15px]!" onClick={() => navigate('/today?view=in')}>
+              Customer cars in
             </Button>
           </div>
 
