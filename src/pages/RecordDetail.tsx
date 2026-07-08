@@ -105,8 +105,12 @@ function RawImportCard({ sheet, row }: { sheet: string; row: number }) {
 
 // ------------------------------------------------------------- view cards
 
-function MovementView({ m }: { m: Movement }) {
-  const when = m.moved_at ? formatDateTime(m.moved_at) : [m.movement_date, m.movement_time].filter(Boolean).join(' ')
+function MovementView({ m, period }: { m: Movement; period: RentalPeriod | null }) {
+  const taken = m.moved_at ? formatDateTime(m.moved_at) : [m.movement_date, m.movement_time].filter(Boolean).join(' ')
+  const ongoing = period ? period.ongoing : m.status === 'active'
+  const backAt = period?.backAt ?? null
+  const returned = ongoing ? 'Still out' : backAt ? formatDateTime(backAt) : period ? 'Not recorded' : ''
+  const dur = m.moved_at ? formatDuration(m.moved_at, ongoing ? new Date().toISOString() : backAt) : ''
   return (
     <Card className="mb-3">
       <div className="flex flex-wrap gap-2 border-b border-ios-sep px-4 py-3">
@@ -120,7 +124,9 @@ function MovementView({ m }: { m: Movement }) {
       <Row label="Owner phone" value={tel(m.owner_phone)} />
       <Row label="Car in (customer)" value={m.cars_in_rego} />
       <Row label="Car out (loan)" value={m.cars_out_rego} />
-      <Row label="When" value={when} />
+      <Row label="Taken out" value={taken} />
+      <Row label="Returned" value={returned} />
+      {dur ? <Row label={ongoing ? 'Out for (so far)' : 'Out for'} value={dur} /> : null}
       <Row label="Notes" value={m.notes} />
       <Row label="Client details (import)" value={m.client_details_raw} />
       <Row label="Driver collecting (import)" value={m.driver_collecting_raw} />
@@ -149,9 +155,11 @@ function IntakeView({ m }: { m: Movement }) {
   )
 }
 
-function ReturnView({ r, onOpenMovement }: { r: Return; onOpenMovement: (id: string) => void }) {
+function ReturnView({ r, onOpenMovement, period }: { r: Return; onOpenMovement: (id: string) => void; period: RentalPeriod | null }) {
   const mid = r.movement_id
   const when = r.returned_at ? formatDateTime(r.returned_at) : [r.return_date, r.return_time].filter(Boolean).join(' ')
+  const takenAt = period?.outAt ?? null
+  const dur = takenAt ? formatDuration(takenAt, r.returned_at ?? r.return_date) : ''
   return (
     <>
       <Card className="mb-3">
@@ -159,7 +167,9 @@ function ReturnView({ r, onOpenMovement }: { r: Return; onOpenMovement: (id: str
         <Row label="Staff" value={staffLabel(r.staff_name)} />
         <Row label="Driver" value={r.driver_name} />
         <Row label="Mobile" value={tel(r.mobile_number)} />
+        <Row label="Taken out" value={takenAt ? formatDateTime(takenAt) : ''} />
         <Row label="Returned" value={when} />
+        {dur ? <Row label="Out for" value={dur} /> : null}
         <Row label="Bond" value={r.bond_status} />
         <Row label="Notes" value={r.notes} />
         <Row label="Driver (import)" value={r.driver_name_raw !== r.driver_name ? r.driver_name_raw : ''} />
@@ -457,6 +467,7 @@ export default function RecordDetail() {
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [busyAction, setBusyAction] = useState('')
+  const [period, setPeriod] = useState<RentalPeriod | null>(null)
 
   const load = useCallback(async () => {
     if (!id || !type || !(type in TABLES)) throw new Error('Record not found')
@@ -473,9 +484,29 @@ export default function RecordDetail() {
   }, [type, id])
 
   useEffect(() => {
-    setLoading(true); setError(''); setRec(null); setEditing(false)
+    setLoading(true); setError(''); setRec(null); setEditing(false); setPeriod(null)
     load().catch((e) => setError(errMsg(e))).finally(() => setLoading(false))
   }, [load])
+
+  // Fetch the "taken → returned" period for a movement/return so the record can
+  // clearly show both dates (reusing the same pairing the rental history uses).
+  useEffect(() => {
+    if (!rec) return
+    let rego = ''
+    if (rec.kind === 'movement' && rec.row.purpose !== 'INTAKE' && rec.row.cars_out_rego) rego = rec.row.cars_out_rego
+    else if (rec.kind === 'return' && rec.row.returned_rego) rego = rec.row.returned_rego
+    if (!rego) return
+    let cancelled = false
+    const kind = rec.kind
+    const matchId = rec.row.id
+    listRentalHistoryByRego(rego)
+      .then((periods) => {
+        if (cancelled) return
+        setPeriod(periods.find((p) => (kind === 'movement' ? p.movementId : p.returnId) === matchId) ?? null)
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [rec])
 
   async function doSave(fn: () => Promise<void>) {
     setSaving(true)
@@ -582,8 +613,8 @@ export default function RecordDetail() {
             )
           ) : (
             <>
-              {rec.kind === 'movement' && (rec.row.purpose === 'INTAKE' ? <IntakeView m={rec.row} /> : <MovementView m={rec.row} />)}
-              {rec.kind === 'return' && <ReturnView r={rec.row} onOpenMovement={(mid) => navigate(`/record/movement/${mid}`)} />}
+              {rec.kind === 'movement' && (rec.row.purpose === 'INTAKE' ? <IntakeView m={rec.row} /> : <MovementView m={rec.row} period={period} />)}
+              {rec.kind === 'return' && <ReturnView r={rec.row} period={period} onOpenMovement={(mid) => navigate(`/record/movement/${mid}`)} />}
               {rec.kind === 'booking' && <BookingView b={rec.row} />}
               {rec.kind === 'vehicle' && <VehicleView v={rec.row} />}
               {rec.kind === 'vehicle' && <VehicleNotes vehicle={rec.row} staffId={staffId} />}
