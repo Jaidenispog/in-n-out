@@ -16,8 +16,21 @@ function must<T>(data: T | null, error: { message: string } | null): T {
 // ---------------------------------------------------------------- vehicles
 
 export async function listVehicles(): Promise<Vehicle[]> {
-  const { data, error } = await supabase.from('vehicles').select('*').order('rego')
-  return must(data, error)
+  // PostgREST caps a single response at 1000 rows, so page through all of them —
+  // otherwise the Cars screen silently drops the tail of the fleet (high regos).
+  const PAGE = 1000
+  const all: Vehicle[] = []
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from('vehicles')
+      .select('*')
+      .order('rego')
+      .range(from, from + PAGE - 1)
+    const rows = must(data, error)
+    all.push(...rows)
+    if (rows.length < PAGE) break
+  }
+  return all
 }
 
 export async function getVehicleByRego(rego: string): Promise<Vehicle | null> {

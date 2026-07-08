@@ -4,14 +4,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { listReturns, listVehicles } from '../lib/db'
+import { isActiveFleet } from '../data/activeFleet'
 import { normRego, startOfTodayISO, vehicleStatusLabel, vehicleStatusTone } from '../lib/utils'
 import type { Return, Vehicle } from '../lib/types'
 import {
-  Badge, Button, Card, EmptyState, ErrorBanner, IconCar, Input, ListRow,
+  Badge, Card, EmptyState, ErrorBanner, IconCar, Input, ListRow,
   LoadingScreen, PageTitle, SegmentedControl, SortControl,
 } from '../components/ui'
 
 type FilterKey = 'all' | 'available' | 'out' | 'booked' | 'returned' | 'repair' | 'review' | 'nomake'
+type ScopeKey = 'fleet' | 'older' | 'customer'
 type VSortKey = 'rego' | 'make' | 'status' | 'added'
 const VSORT_OPTS: { value: VSortKey; label: string }[] = [
   { value: 'rego', label: 'Rego (A–Z)' },
@@ -75,7 +77,7 @@ export default function Availability() {
     return f && (valid as string[]).includes(f) ? (f as FilterKey) : 'all'
   })
   const [sort, setSort] = useState<VSortKey>('rego')
-  const [showCustomer, setShowCustomer] = useState(false)
+  const [scope, setScope] = useState<ScopeKey>('fleet')
 
   useEffect(() => {
     let cancelled = false
@@ -96,16 +98,37 @@ export default function Availability() {
     }
   }, [])
 
-  const customerCount = useMemo(
-    () => vehicles.reduce((n, v) => n + (v.is_company_car ? 0 : 1), 0),
-    [vehicles],
+  // Fleet-scope tallies: the live fleet, older/disposed company cars, customer cars.
+  const scopeCounts = useMemo(() => {
+    let fleet = 0, older = 0, customer = 0
+    for (const v of vehicles) {
+      if (!v.is_company_car) customer++
+      else if (isActiveFleet(v.rego)) fleet++
+      else older++
+    }
+    return { fleet, older, customer }
+  }, [vehicles])
+
+  const scopeOptions = useMemo(
+    (): { value: ScopeKey; label: string }[] => [
+      { value: 'fleet', label: `Active fleet ${scopeCounts.fleet}` },
+      { value: 'older', label: `Older ${scopeCounts.older}` },
+      { value: 'customer', label: `Customer ${scopeCounts.customer}` },
+    ],
+    [scopeCounts],
   )
 
-  // 1. Company-cars-first scope, 2. search, 3. chip filter.
-  const scoped = useMemo(
-    () => (showCustomer ? vehicles : vehicles.filter((v) => v.is_company_car)),
-    [vehicles, showCustomer],
-  )
+  // 1. Fleet scope, 2. search, 3. chip filter.
+  const scoped = useMemo(() => {
+    switch (scope) {
+      case 'older':
+        return vehicles.filter((v) => v.is_company_car && !isActiveFleet(v.rego))
+      case 'customer':
+        return vehicles.filter((v) => !v.is_company_car)
+      default:
+        return vehicles.filter((v) => v.is_company_car && isActiveFleet(v.rego))
+    }
+  }, [vehicles, scope])
 
   const searched = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -210,6 +233,10 @@ export default function Availability() {
       />
 
       <div className="mt-3">
+        <SegmentedControl<ScopeKey> options={scopeOptions} value={scope} onChange={setScope} />
+      </div>
+
+      <div className="mt-2">
         <SegmentedControl<FilterKey> options={filterOptions} value={filter} onChange={setFilter} />
       </div>
 
@@ -217,13 +244,7 @@ export default function Availability() {
         <SortControl<VSortKey> value={sort} onChange={setSort} options={VSORT_OPTS} />
       </div>
 
-      {customerCount > 0 && (
-        <Button variant="plain" full onClick={() => setShowCustomer((s) => !s)}>
-          {showCustomer ? 'Hide customer cars' : `Show customer cars too (${customerCount})`}
-        </Button>
-      )}
-
-      <Card className={customerCount > 0 ? '' : 'mt-3'}>
+      <Card className="mt-3">
         {sorted.length === 0 ? (
           <EmptyState
             icon={<IconCar size={40} />}
@@ -231,7 +252,9 @@ export default function Availability() {
             hint={
               vehicles.length === 0
                 ? 'No vehicles in the system yet.'
-                : 'Try a different filter or search, or show customer cars too.'
+                : scope === 'fleet'
+                  ? 'Try a different filter, or check the Older / Customer tabs.'
+                  : 'Try a different filter or search.'
             }
           />
         ) : (
