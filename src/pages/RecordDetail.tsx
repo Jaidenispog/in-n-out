@@ -7,9 +7,10 @@ import { useAuth } from '../auth/AuthContext'
 import { PURPOSE_OPTIONS } from '../lib/types'
 import type { Activity, Booking, Movement, MovementStatus, Return, Vehicle, VehicleStatus } from '../lib/types'
 import { bookingStatusLabel, bookingStatusTone, formatDateTime, movementStatusLabel, movementStatusTone, normRego, purposeLabel, purposeTone, timeAgo, vehicleStatusLabel, vehicleStatusTone } from '../lib/utils'
-import { cancelBooking, createMovement, getBooking, getMovement, getRawImportRow, getReturn, historyForRecord, listVehicles, setVehicleStatusByRego, updateBooking, updateMovement, updateReturn, updateVehicle } from '../lib/db'
+import { cancelBooking, createMovement, getBooking, getMovement, getRawImportRow, getReturn, historyForRecord, listReturnsByRego, listVehicles, setVehicleStatusByRego, updateBooking, updateMovement, updateReturn, updateVehicle } from '../lib/db'
 import { Badge, Button, Card, ErrorBanner, Field, IconChevronLeft, Input, ListRow, LoadingScreen, PageTitle, SectionHeader, SegmentedControl, Spinner, TextArea } from '../components/ui'
 import { PhotoSection } from '../components/PhotoPicker'
+import { ReturnCard } from '../components/cards'
 
 type Rec = { kind: 'movement'; row: Movement } | { kind: 'return'; row: Return } | { kind: 'booking'; row: Booking } | { kind: 'vehicle'; row: Vehicle }
 
@@ -182,6 +183,25 @@ function VehicleView({ v }: { v: Vehicle }) {
       <Row label="Ownership" value={v.is_company_car ? 'Fleet car' : 'Customer car'} />
       <Row label="Notes" value={v.notes} />
     </Card>
+  )
+}
+
+function VehicleReturnHistory({ rego }: { rego: string }) {
+  const [returns, setReturns] = useState<Return[]>([])
+  const [loaded, setLoaded] = useState(false)
+  useEffect(() => {
+    let cancelled = false
+    listReturnsByRego(rego)
+      .then((r) => { if (!cancelled) { setReturns(r); setLoaded(true) } })
+      .catch(() => { if (!cancelled) setLoaded(true) })
+    return () => { cancelled = true }
+  }, [rego])
+  if (!loaded || returns.length === 0) return null
+  return (
+    <>
+      <SectionHeader>Return history ({returns.length})</SectionHeader>
+      <Card className="mb-3">{returns.map((r) => <ReturnCard key={r.id} ret={r} />)}</Card>
+    </>
   )
 }
 
@@ -411,6 +431,7 @@ export default function RecordDetail() {
               {rec.kind === 'return' && <ReturnView r={rec.row} onOpenMovement={(mid) => navigate(`/record/movement/${mid}`)} />}
               {rec.kind === 'booking' && <BookingView b={rec.row} />}
               {rec.kind === 'vehicle' && <VehicleView v={rec.row} />}
+              {rec.kind === 'vehicle' && <VehicleReturnHistory rego={rec.row.rego} />}
 
               {(rec.kind === 'movement' || rec.kind === 'return') && rec.row.source_sheet !== '' && rec.row.source_row !== null && (
                 <RawImportCard key={rec.row.id} sheet={rec.row.source_sheet} row={rec.row.source_row} />

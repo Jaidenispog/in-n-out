@@ -232,6 +232,8 @@ export default function Settings() {
             Open in Safari → Share → Add to Home Screen
           </div>
         )}
+        <ListRow onClick={() => navigate('/returns')} title="Returns history" />
+        <ListRow onClick={() => navigate('/audit')} title="Activity log" />
         <ListRow onClick={() => navigate('/review')} title="Import review" />
       </Card>
 

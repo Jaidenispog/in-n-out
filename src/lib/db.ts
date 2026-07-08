@@ -279,6 +279,17 @@ export async function listReturns(limit = 50): Promise<Return[]> {
   return must(data, error)
 }
 
+/** All returns for one rego (newest first) — per-vehicle return history. */
+export async function listReturnsByRego(rego: string): Promise<Return[]> {
+  const { data, error } = await supabase
+    .from('vehicle_returns')
+    .select('*')
+    .eq('returned_rego', normRego(rego))
+    .order('created_at', { ascending: false })
+    .limit(100)
+  return must(data, error)
+}
+
 // ----------------------------------------------------------------- today
 
 /** Movements recorded today — drives the "Cars out today" / "Customer cars in" views. */
@@ -417,13 +428,14 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   // 'Needs attention' counts only rows the Import Review screen can actually show
   // (movements + returns flagged needs_review), so the number matches that list.
   // Overdue bookings are surfaced separately on the Bookings tab with a red badge.
-  const [carsOut, returnedToday, goingOutToday, availableCars, bookedCars, reviewM, reviewR] =
+  const [carsOut, returnedToday, goingOutToday, availableCars, bookedCars, overdue, reviewM, reviewR] =
     await Promise.all([
       count(supabase.from('vehicle_movements').select('*', { count: 'exact', head: true }).eq('status', 'active').neq('cars_out_rego', '')),
       count(supabase.from('vehicle_returns').select('*', { count: 'exact', head: true }).eq('return_date', today)),
       count(supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'booked').gte('start_at', today0).lte('start_at', today24)),
       count(supabase.from('vehicles').select('*', { count: 'exact', head: true }).eq('status', 'available').eq('is_company_car', true)),
       count(supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'booked')),
+      count(supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'active').lt('expected_return_at', new Date().toISOString())),
       count(supabase.from('vehicle_movements').select('*', { count: 'exact', head: true }).eq('needs_review', true)),
       count(supabase.from('vehicle_returns').select('*', { count: 'exact', head: true }).eq('needs_review', true)),
     ])
@@ -433,6 +445,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     goingOutToday,
     availableCars,
     bookedCars,
+    overdue,
     needsAttention: reviewM + reviewR,
   }
 }
@@ -541,6 +554,16 @@ export async function listNeedsReview(): Promise<{ movements: Movement[]; return
     supabase.from('vehicle_returns').select('*').eq('needs_review', true).order('created_at', { ascending: false }).limit(500),
   ])
   return { movements: must(m.data, m.error), returns: must(r.data, r.error) }
+}
+
+/** Bulk-clear the review flag on every flagged movement + return. */
+export async function markAllReviewed(staffId: string): Promise<void> {
+  const [m, r] = await Promise.all([
+    supabase.from('vehicle_movements').update({ needs_review: false, review_reason: '', updated_by: staffId }).eq('needs_review', true),
+    supabase.from('vehicle_returns').update({ needs_review: false, review_reason: '', updated_by: staffId }).eq('needs_review', true),
+  ])
+  if (m.error) throw new Error(m.error.message)
+  if (r.error) throw new Error(r.error.message)
 }
 
 export async function getRawImportRow(sourceSheet: string, sourceRow: number): Promise<Record<string, unknown> | null> {

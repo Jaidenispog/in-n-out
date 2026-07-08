@@ -176,6 +176,13 @@ export default function Dashboard() {
                 onClick={() => navigate('/bookings')}
               />
               <StatCard
+                value={stats.overdue}
+                label="Overdue"
+                tone={stats.overdue > 0 ? 'red' : 'gray'}
+                icon={<IconClock size={18} />}
+                onClick={() => navigate('/bookings?tab=active')}
+              />
+              <StatCard
                 value={stats.needsAttention}
                 label="Needs attention"
                 tone={stats.needsAttention > 0 ? 'red' : 'gray'}
@@ -203,7 +210,7 @@ export default function Dashboard() {
             </Button>
           </div>
 
-          <SectionHeader>Recent activity</SectionHeader>
+          <SectionHeader action={<button type="button" onClick={() => navigate('/audit')} className="text-[15px] font-medium text-ios-blue active:opacity-60">See all</button>}>Recent activity</SectionHeader>
           <Card>
             {activity.length === 0 ? (
               <EmptyState

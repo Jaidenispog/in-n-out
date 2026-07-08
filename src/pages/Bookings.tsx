@@ -77,7 +77,10 @@ export default function Bookings() {
   const [searchParams, setSearchParams] = useSearchParams()
 
   // list state
-  const [tab, setTab] = useState<TabKey>('upcoming')
+  const [tab, setTab] = useState<TabKey>(() => {
+    const t = searchParams.get('tab')
+    return t === 'active' || t === 'past' || t === 'upcoming' ? t : 'upcoming'
+  })
   const [bookings, setBookings] = useState<Booking[]>([])
   const [loading, setLoading] = useState(true)
   const [listError, setListError] = useState('')

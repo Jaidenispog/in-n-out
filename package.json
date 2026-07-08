@@ -14,6 +14,8 @@
     "staff:dry": "node scripts/create-staff.mjs --dry-run --file",
     "star365": "node scripts/import-star365.mjs",
     "star365:dry": "node scripts/import-star365.mjs --dry-run",
+    "enrich": "node scripts/enrich-fleet.mjs",
+    "enrich:dry": "node scripts/enrich-fleet.mjs --dry-run",
     "icons": "node scripts/make-icons.mjs"
   },
   "dependencies": {

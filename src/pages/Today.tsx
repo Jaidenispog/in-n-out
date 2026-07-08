@@ -2,7 +2,7 @@
 // Reached from the Dashboard buttons (?view=out|in|returned).
 
 import { useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { listTodaysMovements, listTodaysReturns } from '../lib/db'
 import type { Movement, Return } from '../lib/types'
 import {
@@ -24,6 +24,7 @@ const SORT_OPTS: { value: SortKey; label: string }[] = [
 ]
 
 export default function Today() {
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const paramView = searchParams.get('view') as View | null
   const [view, setView] = useState<View>(paramView && VIEWS.includes(paramView) ? paramView : 'out')
@@ -89,7 +90,14 @@ export default function Today() {
       <ErrorBanner message={error} />
 
       <SegmentedControl<View> options={viewOptions} value={view} onChange={pickView} />
-      <div className="mt-2 flex justify-end">
+      <div className="mt-2 flex items-center justify-between">
+        {view === 'returned' ? (
+          <button type="button" onClick={() => navigate('/returns')} className="px-1 text-[14px] font-medium text-ios-blue active:opacity-60">
+            See all returns →
+          </button>
+        ) : (
+          <span />
+        )}
         <SortControl<SortKey> value={sort} onChange={setSort} options={SORT_OPTS} />
       </div>
 

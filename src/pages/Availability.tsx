@@ -11,7 +11,7 @@ import {
   LoadingScreen, PageTitle, SegmentedControl, SortControl,
 } from '../components/ui'
 
-type FilterKey = 'all' | 'available' | 'out' | 'booked' | 'returned' | 'repair' | 'review'
+type FilterKey = 'all' | 'available' | 'out' | 'booked' | 'returned' | 'repair' | 'review' | 'nomake'
 type VSortKey = 'rego' | 'make' | 'status' | 'added'
 const VSORT_OPTS: { value: VSortKey; label: string }[] = [
   { value: 'rego', label: 'Rego (A–Z)' },
@@ -51,13 +51,13 @@ function VehicleRow({ vehicle, returnedToday }: { vehicle: Vehicle; returnedToda
         </span>
       }
       title={vehicle.rego}
-      subtitle={[vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'Make unknown'}
-      right={
-        <span className="flex flex-col items-end gap-1">
-          {returnedToday && <Badge tone="blue">Returned today</Badge>}
-          <Badge tone={vehicleStatusTone[vehicle.status]}>{vehicleStatusLabel[vehicle.status]}</Badge>
-        </span>
+      subtitle={
+        <>
+          {[vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'Make unknown'}
+          {returnedToday && <span className="text-ios-blue"> · Returned today</span>}
+        </>
       }
+      right={<Badge tone={vehicleStatusTone[vehicle.status]}>{vehicleStatusLabel[vehicle.status]}</Badge>}
     />
   )
 }
@@ -71,7 +71,7 @@ export default function Availability() {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<FilterKey>(() => {
     const f = searchParams.get('filter')
-    const valid: FilterKey[] = ['all', 'available', 'out', 'booked', 'returned', 'repair', 'review']
+    const valid: FilterKey[] = ['all', 'available', 'out', 'booked', 'returned', 'repair', 'review', 'nomake']
     return f && (valid as string[]).includes(f) ? (f as FilterKey) : 'all'
   })
   const [sort, setSort] = useState<VSortKey>('rego')
@@ -120,7 +120,7 @@ export default function Availability() {
   }, [scoped, search])
 
   const counts = useMemo(() => {
-    const c = { all: searched.length, available: 0, out: 0, booked: 0, returned: 0, repair: 0, review: 0 }
+    const c = { all: searched.length, available: 0, out: 0, booked: 0, returned: 0, repair: 0, review: 0, nomake: 0 }
     for (const v of searched) {
       if (v.status === 'available') c.available++
       else if (v.status === 'out') c.out++
@@ -128,6 +128,7 @@ export default function Availability() {
       else if (v.status === 'repair') c.repair++
       else if (v.status === 'unknown') c.review++
       if (returnedToday.has(v.rego)) c.returned++
+      if (!v.make.trim()) c.nomake++
     }
     return c
   }, [searched, returnedToday])
@@ -141,6 +142,7 @@ export default function Availability() {
       { value: 'returned', label: `Returned today ${counts.returned}` },
       { value: 'repair', label: `Repair ${counts.repair}` },
       { value: 'review', label: `Review ${counts.review}` },
+      { value: 'nomake', label: `No make ${counts.nomake}` },
     ],
     [counts],
   )
@@ -159,6 +161,8 @@ export default function Availability() {
         return searched.filter((v) => v.status === 'repair')
       case 'review':
         return searched.filter((v) => v.status === 'unknown')
+      case 'nomake':
+        return searched.filter((v) => !v.make.trim())
       default:
         return searched
     }

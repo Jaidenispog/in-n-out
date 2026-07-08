@@ -2,13 +2,15 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { listNeedsReview } from '../lib/db'
+import { useAuth } from '../auth/AuthContext'
+import { listNeedsReview, markAllReviewed } from '../lib/db'
 import type { Movement, Return } from '../lib/types'
 import { formatDate, movementStatusLabel, movementStatusTone } from '../lib/utils'
 import {
   Badge,
   Button,
   Card,
+  ConfirmSheet,
   EmptyState,
   ErrorBanner,
   IconCheck,
@@ -90,10 +92,13 @@ function ReturnRow({ ret }: { ret: Return }) {
 
 export default function ImportReview() {
   const navigate = useNavigate()
+  const { staffId } = useAuth()
   const [tab, setTab] = useState<Tab>('movements')
   const [data, setData] = useState<{ movements: Movement[]; returns: Return[] } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [clearing, setClearing] = useState(false)
 
   async function load() {
     setLoading(true)
@@ -104,6 +109,21 @@ export default function ImportReview() {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function markAll() {
+    if (clearing) return
+    setClearing(true)
+    setConfirmOpen(false)
+    setError('')
+    try {
+      await markAllReviewed(staffId)
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setClearing(false)
     }
   }
 
@@ -158,6 +178,12 @@ export default function ImportReview() {
         </Button>
       </div>
 
+      {!loading && (movements.length > 0 || returns.length > 0) && (
+        <Button variant="secondary" full className="mb-4" loading={clearing} onClick={() => setConfirmOpen(true)}>
+          Mark all reviewed ({movements.length + returns.length})
+        </Button>
+      )}
+
       {loading && !data ? (
         <LoadingScreen />
       ) : empty ? (
@@ -165,6 +191,15 @@ export default function ImportReview() {
       ) : (
         <div className="flex flex-col gap-2.5">{list}</div>
       )}
+
+      <ConfirmSheet
+        open={confirmOpen}
+        title="Mark all reviewed?"
+        message={`This clears the review flag on all ${movements.length + returns.length} flagged records. You can still open and edit any of them later.`}
+        confirmLabel="Mark all reviewed"
+        onConfirm={() => void markAll()}
+        onCancel={() => setConfirmOpen(false)}
+      />
     </div>
   )
 }

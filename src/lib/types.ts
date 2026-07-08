@@ -161,6 +161,7 @@ export interface DashboardStats {
   goingOutToday: number
   availableCars: number
   bookedCars: number
+  overdue: number
   needsAttention: number
 }
 
