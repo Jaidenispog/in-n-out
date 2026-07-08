@@ -508,15 +508,19 @@ export default function RecordDetail() {
               <PhotoSection links={{ movement_id: rec.row.id }} defaultType="damage" filterType="damage" title="Damage photos" staffId={staffId} />
               <PhotoSection links={{ movement_id: rec.row.id }} defaultType="other" filterType="other" title="Report card photos" staffId={staffId} />
             </>
+          ) : rec.kind === 'movement' ? (
+            <>
+              <PhotoSection links={{ movement_id: rec.row.id }} defaultType="before_handover" filterType="before_handover" title="Before photos — our car" staffId={staffId} />
+              <PhotoSection links={{ movement_id: rec.row.id }} defaultType="damage" filterType="damage" title="Before photos — their car" staffId={staffId} />
+            </>
           ) : (
             <PhotoSection
               links={
-                rec.kind === 'movement' ? { movement_id: rec.row.id }
-                : rec.kind === 'return' ? { return_id: rec.row.id }
+                rec.kind === 'return' ? { return_id: rec.row.id }
                 : rec.kind === 'booking' ? { booking_id: rec.row.id }
                 : { vehicle_id: rec.row.id }
               }
-              defaultType={rec.kind === 'movement' ? 'before_handover' : rec.kind === 'return' ? 'after_return' : 'other'}
+              defaultType={rec.kind === 'return' ? 'after_return' : 'other'}
               staffId={staffId}
             />
           )}

@@ -61,7 +61,8 @@ export default function NewMovement() {
   const [purpose, setPurpose] = useState<Purpose>('RENT')
   const [dt, setDt] = useState(nowLocalInputValue())
   const [notes, setNotes] = useState('')
-  const [files, setFiles] = useState<File[]>([])
+  const [files, setFiles] = useState<File[]>([]) // our car (cars out)
+  const [theirFiles, setTheirFiles] = useState<File[]>([]) // their car (cars in)
 
   // Availability check state (for the CARS OUT rego)
   const [conflicts, setConflicts] = useState<RegoConflict | null>(null)
@@ -148,9 +149,10 @@ export default function NewMovement() {
         id = movement.id
         setCreatedId(id)
       }
-      if (files.length > 0) {
+      if (files.length > 0 || theirFiles.length > 0) {
         setUploading(true)
-        await uploadStaged(files, 'before_handover', { movement_id: id }, staffId)
+        if (files.length > 0) await uploadStaged(files, 'before_handover', { movement_id: id }, staffId)
+        if (theirFiles.length > 0) await uploadStaged(theirFiles, 'damage', { movement_id: id }, staffId)
         setUploading(false)
       }
       navigate('/record/movement/' + id, { replace: true })
@@ -278,7 +280,8 @@ export default function NewMovement() {
           />
         </Field>
 
-        <PhotoStager label="Before photos" files={files} onChange={setFiles} />
+        <PhotoStager label="Before photos — our car" files={files} onChange={setFiles} />
+        <PhotoStager label="Before photos — their car" files={theirFiles} onChange={setTheirFiles} />
 
         <div className="mt-1 flex flex-col gap-2">
           <ErrorBanner message={error} />
