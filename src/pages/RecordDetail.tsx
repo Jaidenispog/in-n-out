@@ -10,6 +10,7 @@ import { bookingStatusLabel, bookingStatusTone, formatDate, formatDateTime, form
 import { cancelBooking, createMovement, getBooking, getMovement, getRawImportRow, getReturn, historyForRecord, listRentalHistoryByRego, listVehicles, setVehicleStatusByRego, updateBooking, updateMovement, updateReturn, updateVehicle } from '../lib/db'
 import { Badge, Button, Card, ErrorBanner, Field, IconChevronLeft, Input, ListRow, LoadingScreen, PageTitle, SectionHeader, SegmentedControl, Spinner, TextArea } from '../components/ui'
 import { PhotoSection } from '../components/PhotoPicker'
+import { VehicleTracking } from '../components/VehicleTracking'
 
 type Rec = { kind: 'movement'; row: Movement } | { kind: 'return'; row: Return } | { kind: 'booking'; row: Booking } | { kind: 'vehicle'; row: Vehicle }
 
@@ -617,6 +618,7 @@ export default function RecordDetail() {
               {rec.kind === 'return' && <ReturnView r={rec.row} period={period} onOpenMovement={(mid) => navigate(`/record/movement/${mid}`)} />}
               {rec.kind === 'booking' && <BookingView b={rec.row} />}
               {rec.kind === 'vehicle' && <VehicleView v={rec.row} />}
+              {rec.kind === 'vehicle' && rec.row.is_company_car && <VehicleTracking rego={rec.row.rego} />}
               {rec.kind === 'vehicle' && <VehicleNotes vehicle={rec.row} staffId={staffId} />}
               {rec.kind === 'vehicle' && <VehicleRentalHistory rego={rec.row.rego} />}
 
