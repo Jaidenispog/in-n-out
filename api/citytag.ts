@@ -63,7 +63,14 @@ async function selectPage(s: { token: string; cookie: string }) {
   return res.json().catch(() => ({}))
 }
 
+// The whole tag list (all ~300) comes back in one call, so cache it briefly —
+// opening several cars in a row then reuses it instantly instead of refetching.
+// CityTag itself only updates every few minutes, so a short cache loses nothing.
+let devicesCache: { at: number; devices: any[] } | null = null
+const DEVICES_TTL_MS = 20 * 1000
+
 async function fetchDevices(): Promise<any[]> {
+  if (devicesCache && Date.now() - devicesCache.at < DEVICES_TTL_MS) return devicesCache.devices
   let s = await getSession()
   let json: any = await selectPage(s)
   const dead = json && !Array.isArray(json) && !Array.isArray(json.data)
@@ -73,6 +80,7 @@ async function fetchDevices(): Promise<any[]> {
     json = await selectPage(s)
   }
   const arr = Array.isArray(json) ? json : Array.isArray(json?.data) ? json.data : []
+  devicesCache = { at: Date.now(), devices: arr }
   return arr
 }
 

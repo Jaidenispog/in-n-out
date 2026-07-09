@@ -10,6 +10,7 @@ import 'leaflet/dist/leaflet.css'
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
 import markerIcon from 'leaflet/dist/images/marker-icon.png'
 import markerShadow from 'leaflet/dist/images/marker-shadow.png'
+import { formatDateTime } from '../lib/utils'
 import { Card, ErrorBanner, SectionHeader, Spinner } from './ui'
 
 // Leaflet's default marker icon breaks under bundlers — point it at the bundled images.
@@ -29,10 +30,14 @@ type Device = {
   address: string
 }
 
-/** Rough "X ago" from CityTag's "YYYY-MM-DD HH:MM:SS" string (best-effort; raw time is shown too). */
+// CityTag reports times in UTC as "YYYY-MM-DD HH:MM:SS" — turn that into a real ISO instant.
+const toISO = (t: string | null): string | null => (t ? `${t.replace(' ', 'T')}Z` : null)
+
+/** Rough "X ago" from a CityTag UTC time string. */
 function relative(t: string | null): string {
-  if (!t) return ''
-  const ms = new Date(t.replace(' ', 'T')).getTime()
+  const iso = toISO(t)
+  if (!iso) return ''
+  const ms = new Date(iso).getTime()
   if (Number.isNaN(ms)) return ''
   const s = (Date.now() - ms) / 1000
   if (s < 90) return 'just now'
@@ -115,7 +120,7 @@ export function VehicleTracking({ rego }: { rego: string }) {
             <div className="px-4 py-3 text-[14px]">
               {device.address ? <div className="text-ios-label">{device.address}</div> : null}
               <div className="mt-0.5 text-ios-gray">
-                {device.time ? `Last update: ${device.time}` : 'No timestamp'}
+                {device.time ? `Last update: ${formatDateTime(toISO(device.time))}` : 'No timestamp'}
                 {relative(device.time) ? ` · ${relative(device.time)}` : ''}
                 {device.battery != null ? ` · Battery ${device.battery}%` : ''}
               </div>
