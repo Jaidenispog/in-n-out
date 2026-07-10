@@ -60,6 +60,13 @@ export const IconCamera = svg(
     <circle cx="12" cy="13.5" r="3.5" />
   </>,
 )
+export const IconImage = svg(
+  <>
+    <rect x="3" y="5" width="18" height="14" rx="2" />
+    <circle cx="8.5" cy="10" r="1.5" />
+    <path d="m21 15-4.5-4.5L7 19" />
+  </>,
+)
 export const IconX = svg(<path d="M6 6l12 12M18 6 6 18" />)
 export const IconCheck = svg(<path d="m4.5 12.5 5 5L19.5 7" />)
 export const IconWarning = svg(

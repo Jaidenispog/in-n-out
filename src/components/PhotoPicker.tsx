@@ -4,7 +4,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { listPhotos, uploadPhoto, deletePhoto, type PhotoLinks } from '../lib/photos'
 import type { Photo, PhotoType } from '../lib/types'
-import { ErrorBanner, IconCamera, IconX, SectionHeader, Spinner } from './ui'
+import { ErrorBanner, IconCamera, IconImage, IconX, SectionHeader, Spinner } from './ui'
+import { CameraCapture } from './CameraCapture'
 
 export function PhotoStager({
   label,
@@ -17,6 +18,7 @@ export function PhotoStager({
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [previews, setPreviews] = useState<string[]>([])
+  const [cameraOpen, setCameraOpen] = useState(false)
 
   useEffect(() => {
     const urls = files.map((f) => URL.createObjectURL(f))
@@ -41,14 +43,8 @@ export function PhotoStager({
             </button>
           </div>
         ))}
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          className="flex h-20 w-20 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-ios-gray2 text-ios-gray"
-        >
-          <IconCamera size={24} />
-          <span className="text-[11px] font-medium">Add</span>
-        </button>
+        <AddTile icon={<IconCamera size={22} />} label="Camera" onClick={() => setCameraOpen(true)} />
+        <AddTile icon={<IconImage size={22} />} label="Library" onClick={() => inputRef.current?.click()} />
       </div>
       <input
         ref={inputRef}
@@ -62,7 +58,28 @@ export function PhotoStager({
           e.target.value = ''
         }}
       />
+      {cameraOpen && (
+        <CameraCapture
+          onClose={() => setCameraOpen(false)}
+          onDone={(f) => { onChange([...files, ...f]); setCameraOpen(false) }}
+        />
+      )}
     </div>
+  )
+}
+
+// Two-option add: Camera (multi-shot in-app) + Library (multi-select native picker).
+function AddTile({ icon, label, onClick, disabled }: { icon: React.ReactNode; label: string; onClick: () => void; disabled?: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="flex h-20 w-20 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-ios-gray2 text-ios-gray disabled:opacity-50"
+    >
+      {icon}
+      <span className="text-[11px] font-medium">{label}</span>
+    </button>
   )
 }
 
@@ -108,6 +125,7 @@ export function PhotoSection({
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [viewer, setViewer] = useState<(Photo & { url: string }) | null>(null)
+  const [cameraOpen, setCameraOpen] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const reload = () => {
@@ -163,15 +181,16 @@ export function PhotoSection({
                 )}
               </button>
             ))}
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => inputRef.current?.click()}
-              className="flex h-20 w-20 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-ios-gray2 text-ios-gray disabled:opacity-50"
-            >
-              {busy ? <Spinner /> : <IconCamera size={24} />}
-              <span className="text-[11px] font-medium">{busy ? '' : 'Add'}</span>
-            </button>
+            {busy ? (
+              <div className="flex h-20 w-20 items-center justify-center rounded-xl border-2 border-dashed border-ios-gray2">
+                <Spinner />
+              </div>
+            ) : (
+              <>
+                <AddTile icon={<IconCamera size={22} />} label="Camera" onClick={() => setCameraOpen(true)} />
+                <AddTile icon={<IconImage size={22} />} label="Library" onClick={() => inputRef.current?.click()} />
+              </>
+            )}
           </div>
         )}
         <input
@@ -187,6 +206,13 @@ export function PhotoSection({
           }}
         />
       </div>
+
+      {cameraOpen && (
+        <CameraCapture
+          onClose={() => setCameraOpen(false)}
+          onDone={(f) => { setCameraOpen(false); if (f.length) void add(f) }}
+        />
+      )}
 
       {viewer && (
         <div className="fixed inset-0 z-50 flex flex-col bg-black" onClick={() => setViewer(null)}>
