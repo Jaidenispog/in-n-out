@@ -34,6 +34,7 @@ function buildReturnedTodaySet(returns: Return[]): Set<string> {
   const set = new Set<string>()
   for (const r of returns) {
     if (!r.returned_rego) continue
+    if (r.source_sheet === 'handback') continue // hand-backs aren't loaner returns
     const createdToday = new Date(r.created_at).getTime() >= startMs
     if (createdToday || r.return_date === today) set.add(r.returned_rego)
   }

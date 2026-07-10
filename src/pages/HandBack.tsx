@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import type { Movement } from '../lib/types'
 import { formatDateTime, normRego, nowLocalInputValue } from '../lib/utils'
-import { createHandback, findOpenIntakeByRego } from '../lib/db'
+import { createHandback, findOpenIntakeByRego, getMovement } from '../lib/db'
 import { PhotoStager, uploadStaged } from '../components/PhotoPicker'
 import {
   Button, Card, ErrorBanner, Field, IconChevronLeft, IconChevronRight, Input, PageTitle, TextArea,
@@ -19,6 +19,7 @@ export default function HandBack() {
   const [searchParams] = useSearchParams()
 
   const [rego, setRego] = useState(() => (searchParams.get('rego') || '').toUpperCase())
+  const [fixedId, setFixedId] = useState(() => searchParams.get('intake') || '')
   const [driverName, setDriverName] = useState('')
   const [mobile, setMobile] = useState('')
   const [collectedAt, setCollectedAt] = useState(nowLocalInputValue())
@@ -54,10 +55,29 @@ export default function HandBack() {
     }
   }
 
-  // Arrived from an intake's "Hand back to customer" (rego pre-seeded) — auto-check once.
+  // Opened from a specific intake's record: close THAT intake, not just the newest by rego.
+  async function loadFixedIntake() {
+    setChecking(true)
+    try {
+      const m = await getMovement(fixedId)
+      setMatch(m)
+      setMatchChecked(true)
+      if (!rego) setRego(m.cars_in_rego)
+      if (!driverName.trim() && m.driver_name) setDriverName(m.driver_name)
+      if (!mobile.trim() && m.driver_phone) setMobile(m.driver_phone)
+    } catch {
+      setFixedId('') // fall back to rego matching if the intake can't be loaded
+      if (normRego(rego).length >= 4) await checkRego()
+    } finally {
+      setChecking(false)
+    }
+  }
+
+  // Auto-resolve once on open: by explicit intake id if provided, else by rego.
   // oxlint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (normRego(rego).length >= 4) void checkRego()
+    if (fixedId) void loadFixedIntake()
+    else if (normRego(rego).length >= 4) void checkRego()
   }, [])
 
   async function handleSubmit(e: React.FormEvent) {
@@ -78,7 +98,7 @@ export default function HandBack() {
         returned_at: iso,
         notes,
         staffId,
-        movementId: match?.id,
+        movementId: fixedId || match?.id,
       })
       try {
         if (files.length) await uploadStaged(files, 'after_return', { return_id: ret.id }, staffId)
@@ -118,6 +138,7 @@ export default function HandBack() {
                 setRego(e.target.value.toUpperCase())
                 setMatch(null)
                 setMatchChecked(false)
+                setFixedId('') // typing a new rego retargets — drop the pre-seeded intake
               }}
               onBlur={checkRego}
               placeholder="e.g. 1PI3XZ"

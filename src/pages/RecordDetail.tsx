@@ -166,7 +166,11 @@ function ReturnView({ r, onOpenMovement }: { r: Return; onOpenMovement: (id: str
       </Card>
       {mid && (
         <Card className="mb-3">
-          <ListRow title="View linked movement" subtitle="The movement that gave this car out" onClick={() => onOpenMovement(mid)} />
+          <ListRow
+            title={r.source_sheet === 'handback' ? 'View linked intake' : 'View linked movement'}
+            subtitle={r.source_sheet === 'handback' ? 'The intake this repaired car was dropped off under' : 'The movement that gave this car out'}
+            onClick={() => onOpenMovement(mid)}
+          />
         </Card>
       )}
     </>
@@ -519,7 +523,7 @@ export default function RecordDetail() {
                 <Button full className="mb-3" onClick={() => navigate('/return?rego=' + encodeURIComponent(rec.row.cars_out_rego))}>Record return</Button>
               )}
               {rec.kind === 'movement' && rec.row.purpose === 'INTAKE' && rec.row.status === 'active' && (
-                <Button full className="mb-3" onClick={() => navigate('/handback?rego=' + encodeURIComponent(rec.row.cars_in_rego))}>Hand back to customer</Button>
+                <Button full className="mb-3" onClick={() => navigate('/handback?rego=' + encodeURIComponent(rec.row.cars_in_rego) + '&intake=' + rec.row.id)}>Hand back to customer</Button>
               )}
               {rec.kind === 'movement' && rec.row.purpose === 'INTAKE' && rec.row.status === 'closed' && (
                 <IntakeHandbackLink movementId={rec.row.id} />
@@ -555,6 +559,7 @@ export default function RecordDetail() {
                 : { vehicle_id: rec.row.id }
               }
               defaultType={rec.kind === 'movement' ? 'before_handover' : rec.kind === 'return' ? 'after_return' : 'other'}
+              title={rec.kind === 'return' && rec.row.source_sheet === 'handback' ? 'After-repair photos' : undefined}
               staffId={staffId}
             />
           )}
