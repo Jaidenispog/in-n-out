@@ -16,6 +16,7 @@ import Today from './pages/Today'
 import Returns from './pages/Returns'
 import AuditLog from './pages/AuditLog'
 import CarIntake from './pages/CarIntake'
+import HandBack from './pages/HandBack'
 
 function SetupNeeded() {
   return (
@@ -57,6 +58,7 @@ export default function App() {
             <Route path="/returns" element={<Returns />} />
             <Route path="/audit" element={<AuditLog />} />
             <Route path="/intake" element={<CarIntake />} />
+            <Route path="/handback" element={<HandBack />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

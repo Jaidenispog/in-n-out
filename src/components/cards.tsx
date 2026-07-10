@@ -45,10 +45,11 @@ export function MovementCard({ movement }: { movement: Movement }) {
 
 export function ReturnCard({ ret }: { ret: Return }) {
   const navigate = useNavigate()
+  const handback = ret.source_sheet === 'handback'
   return (
     <ListRow
       onClick={() => navigate(`/record/return/${ret.id}`)}
-      left={iconWrap('bg-ios-green', <IconArrowUp size={20} />)}
+      left={iconWrap(handback ? 'bg-ios-blue' : 'bg-ios-green', handback ? <IconCar size={20} /> : <IconArrowUp size={20} />)}
       title={ret.returned_rego || ret.returned_rego_raw || 'Return'}
       subtitle={
         <>
@@ -57,7 +58,7 @@ export function ReturnCard({ ret }: { ret: Return }) {
           {formatDateTime(ret.returned_at ?? ret.created_at)}
         </>
       }
-      right={<Badge tone="green">Returned</Badge>}
+      right={handback ? <Badge tone="blue">Handed back</Badge> : <Badge tone="green">Returned</Badge>}
     />
   )
 }

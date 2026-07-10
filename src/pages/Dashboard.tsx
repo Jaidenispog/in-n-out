@@ -162,6 +162,13 @@ export default function Dashboard() {
                 onClick={() => navigate('/today?view=returned')}
               />
               <StatCard
+                value={stats.handedBackToday}
+                label="Handed back"
+                tone="green"
+                icon={<IconCar size={18} />}
+                onClick={() => navigate('/returns?filter=handback')}
+              />
+              <StatCard
                 value={stats.goingOutToday}
                 label="Going out today"
                 tone="orange"

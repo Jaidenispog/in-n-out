@@ -1,11 +1,11 @@
 // Returns history — every recorded return, sortable. (Reached from Today / Settings.)
 
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { listReturns } from '../lib/db'
 import type { Return } from '../lib/types'
 import {
-  Card, EmptyState, ErrorBanner, IconArrowUp, IconChevronLeft, LoadingScreen, PageTitle, SortControl,
+  Card, EmptyState, ErrorBanner, IconArrowUp, IconChevronLeft, LoadingScreen, PageTitle, SegmentedControl, SortControl,
 } from '../components/ui'
 import { ReturnCard } from '../components/cards'
 
@@ -17,12 +17,22 @@ const SORT_OPTS: { value: SortKey; label: string }[] = [
   { value: 'driver', label: 'Driver name (A–Z)' },
 ]
 
+type Filter = 'all' | 'loaner' | 'handback'
+const FILTER_OPTS: { value: Filter; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'loaner', label: 'Loaner returns' },
+  { value: 'handback', label: 'Hand-backs' },
+]
+
 export default function Returns() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const paramFilter = searchParams.get('filter') as Filter | null
   const [returns, setReturns] = useState<Return[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [sort, setSort] = useState<SortKey>('newest')
+  const [filter, setFilter] = useState<Filter>(paramFilter === 'handback' || paramFilter === 'loaner' ? paramFilter : 'all')
 
   useEffect(() => {
     let cancelled = false
@@ -34,7 +44,9 @@ export default function Returns() {
   }, [])
 
   const sorted = useMemo(() => {
-    const arr = [...returns]
+    let arr = [...returns]
+    if (filter === 'handback') arr = arr.filter((r) => r.source_sheet === 'handback')
+    else if (filter === 'loaner') arr = arr.filter((r) => r.source_sheet !== 'handback')
     if (sort === 'oldest') return arr.sort((a, b) => a.created_at.localeCompare(b.created_at))
     if (sort === 'rego') return arr.sort((a, b) => (a.returned_rego || '').localeCompare(b.returned_rego || ''))
     if (sort === 'driver') return arr.sort((a, b) => {
@@ -42,7 +54,7 @@ export default function Returns() {
       return (!ad !== !bd) ? (ad ? -1 : 1) : ad.localeCompare(bd)
     })
     return arr.sort((a, b) => b.created_at.localeCompare(a.created_at))
-  }, [returns, sort])
+  }, [returns, sort, filter])
 
   return (
     <div className="pt-2">
@@ -51,14 +63,21 @@ export default function Returns() {
       </button>
       <PageTitle>Returns history</PageTitle>
       <ErrorBanner message={error} />
-      <div className="mb-2 flex items-center justify-between">
-        <span className="px-1 text-[14px] text-ios-label2">{returns.length} return{returns.length === 1 ? '' : 's'}{returns.length >= 300 ? '+' : ''}</span>
+      <SegmentedControl<Filter> options={FILTER_OPTS} value={filter} onChange={setFilter} />
+      <div className="mt-2 mb-2 flex items-center justify-between">
+        <span className="px-1 text-[14px] text-ios-label2">
+          {sorted.length} {filter === 'handback' ? 'hand-back' : 'return'}{sorted.length === 1 ? '' : 's'}{returns.length >= 300 ? '+' : ''}
+        </span>
         <SortControl<SortKey> value={sort} onChange={setSort} options={SORT_OPTS} />
       </div>
       {loading ? (
         <LoadingScreen />
       ) : sorted.length === 0 ? (
-        <EmptyState icon={<IconArrowUp size={40} />} title="No returns yet" hint="Recorded returns will appear here." />
+        <EmptyState
+          icon={<IconArrowUp size={40} />}
+          title={filter === 'handback' ? 'No hand-backs yet' : 'No returns yet'}
+          hint={filter === 'handback' ? 'Repaired cars handed back to customers will appear here.' : 'Recorded returns will appear here.'}
+        />
       ) : (
         <Card>{sorted.map((r) => <ReturnCard key={r.id} ret={r} />)}</Card>
       )}

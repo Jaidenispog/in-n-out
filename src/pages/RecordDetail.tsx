@@ -7,7 +7,7 @@ import { useAuth } from '../auth/AuthContext'
 import { PURPOSE_OPTIONS } from '../lib/types'
 import type { Activity, Booking, Movement, MovementStatus, Return, Vehicle, VehicleStatus } from '../lib/types'
 import { bookingStatusLabel, bookingStatusTone, formatDateTime, localDateOf, localTimeOf, movementStatusLabel, movementStatusTone, normRego, purposeLabel, purposeTone, timeAgo, vehicleStatusLabel, vehicleStatusTone } from '../lib/utils'
-import { cancelBooking, createMovement, getBooking, getMovement, getRawImportRow, getReturn, historyForRecord, listReturnsByRego, listVehicles, setVehicleStatusByRego, updateBooking, updateMovement, updateReturn, updateVehicle } from '../lib/db'
+import { cancelBooking, createMovement, getBooking, getHandbackForMovement, getMovement, getRawImportRow, getReturn, historyForRecord, listReturnsByRego, listVehicles, setVehicleStatusByRego, updateBooking, updateMovement, updateReturn, updateVehicle } from '../lib/db'
 import { Badge, Button, Card, ErrorBanner, Field, IconChevronLeft, Input, ListRow, LoadingScreen, PageTitle, SectionHeader, SegmentedControl, Spinner, TextArea } from '../components/ui'
 import { PhotoSection } from '../components/PhotoPicker'
 import { ReturnCard } from '../components/cards'
@@ -134,7 +134,9 @@ function IntakeView({ m }: { m: Movement }) {
   return (
     <Card className="mb-3">
       <div className="flex flex-wrap gap-2 border-b border-ios-sep px-4 py-3">
-        <Badge tone="orange">Customer car in</Badge>
+        {m.status === 'closed'
+          ? <Badge tone="green">Collected</Badge>
+          : <Badge tone="orange">Customer car in</Badge>}
       </div>
       <Row label="Customer" value={m.driver_name} />
       <Row label="Phone" value={tel(m.driver_phone)} />
@@ -219,6 +221,36 @@ function VehicleReturnHistory({ rego }: { rego: string }) {
       <SectionHeader>Return history ({returns.length})</SectionHeader>
       <Card className="mb-3">{returns.map((r) => <ReturnCard key={r.id} ret={r} />)}</Card>
     </>
+  )
+}
+
+// Shown on a closed intake: confirms the car was handed back and links to that record.
+function IntakeHandbackLink({ movementId }: { movementId: string }) {
+  const navigate = useNavigate()
+  const [ret, setRet] = useState<Return | null>(null)
+  const [loaded, setLoaded] = useState(false)
+  useEffect(() => {
+    let cancelled = false
+    getHandbackForMovement(movementId)
+      .then((r) => { if (!cancelled) { setRet(r); setLoaded(true) } })
+      .catch(() => { if (!cancelled) setLoaded(true) })
+    return () => { cancelled = true }
+  }, [movementId])
+  if (!loaded) return null
+  return (
+    <div className="mb-3 rounded-card bg-ios-green/12 p-4 shadow-card">
+      <div className="text-[13px] font-semibold tracking-wide text-ios-green uppercase">Collected</div>
+      <div className="mt-1 text-[17px] text-ios-label">Handed back to the customer.</div>
+      {ret && (
+        <Card className="mt-3">
+          <ListRow
+            title="View hand-back record"
+            subtitle="Collection details + after-repair photos"
+            onClick={() => navigate(`/record/return/${ret.id}`)}
+          />
+        </Card>
+      )}
+    </div>
   )
 }
 
@@ -485,6 +517,12 @@ export default function RecordDetail() {
 
               {rec.kind === 'movement' && rec.row.status === 'active' && rec.row.purpose !== 'INTAKE' && rec.row.cars_out_rego && (
                 <Button full className="mb-3" onClick={() => navigate('/return?rego=' + encodeURIComponent(rec.row.cars_out_rego))}>Record return</Button>
+              )}
+              {rec.kind === 'movement' && rec.row.purpose === 'INTAKE' && rec.row.status === 'active' && (
+                <Button full className="mb-3" onClick={() => navigate('/handback?rego=' + encodeURIComponent(rec.row.cars_in_rego))}>Hand back to customer</Button>
+              )}
+              {rec.kind === 'movement' && rec.row.purpose === 'INTAKE' && rec.row.status === 'closed' && (
+                <IntakeHandbackLink movementId={rec.row.id} />
               )}
               {rec.kind === 'booking' && rec.row.status === 'booked' && (
                 <div className="mb-3 flex flex-col gap-2">

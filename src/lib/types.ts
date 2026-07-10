@@ -158,6 +158,7 @@ export interface Activity {
 export interface DashboardStats {
   carsOut: number
   returnedToday: number
+  handedBackToday: number
   goingOutToday: number
   availableCars: number
   bookedCars: number

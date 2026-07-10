@@ -55,7 +55,6 @@ export function PhotoStager({
         type="file"
         accept="image/*"
         multiple
-        capture="environment"
         className="hidden"
         onChange={(e) => {
           const chosen = Array.from(e.target.files ?? [])
@@ -180,7 +179,6 @@ export function PhotoSection({
           type="file"
           accept="image/*"
           multiple
-          capture="environment"
           className="hidden"
           onChange={(e) => {
             const chosen = Array.from(e.target.files ?? [])

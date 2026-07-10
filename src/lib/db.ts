@@ -175,6 +175,21 @@ export async function findActiveMovementByRego(rego: string): Promise<Movement |
   return data
 }
 
+/** The open customer-car intake for this rego, if any (for hand-back matching). */
+export async function findOpenIntakeByRego(rego: string): Promise<Movement | null> {
+  const { data, error } = await supabase
+    .from('vehicle_movements')
+    .select('*')
+    .eq('cars_in_rego', normRego(rego))
+    .eq('purpose', 'INTAKE')
+    .eq('status', 'active')
+    .order('moved_at', { ascending: false, nullsFirst: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) throw new Error(error.message)
+  return data
+}
+
 /** Everything staff should be warned about before giving this car out. */
 export async function getRegoConflicts(rego: string): Promise<RegoConflict> {
   const clean = normRego(rego)
@@ -262,6 +277,77 @@ export async function getReturn(id: string): Promise<Return> {
   return must(data, error)
 }
 
+// -------------------------------------------------------------- hand-backs
+
+export interface NewHandbackInput {
+  driver_name: string
+  mobile_number: string
+  returned_rego: string // the customer's own (repaired) car
+  returned_at: string // ISO
+  notes: string
+  staffId: string
+  movementId?: string // the intake to close, when opened from its record page
+}
+
+/** Customer collects their repaired car. Stored as a `vehicle_returns` row tagged
+ * `source_sheet = 'handback'` and linked to the intake, which is closed. Unlike a loaner
+ * return this does NOT flag the customer's car as fleet, free a vehicle, or touch bookings. */
+export async function createHandback(input: NewHandbackInput): Promise<{ ret: Return; intake: Movement | null }> {
+  const rego = normRego(input.returned_rego)
+  let intake: Movement | null = null
+  if (input.movementId) intake = await getMovement(input.movementId).catch(() => null)
+  if (!intake && rego) intake = await findOpenIntakeByRego(rego)
+  const customerId = await ensureCustomer(input.driver_name, input.mobile_number)
+  // Leave is_company_car at its default (false) — the customer's car is not fleet stock.
+  const vehicle = rego ? await ensureVehicle(rego, {}) : null
+  const { data, error } = await supabase
+    .from('vehicle_returns')
+    .insert({
+      movement_id: intake?.id ?? null,
+      customer_id: customerId,
+      returned_vehicle_id: vehicle?.id ?? null,
+      returned_rego: rego,
+      returned_rego_raw: input.returned_rego,
+      driver_name: input.driver_name.trim(),
+      driver_name_raw: input.driver_name,
+      mobile_number: normPhone(input.mobile_number),
+      mobile_number_raw: input.mobile_number,
+      returned_at: input.returned_at,
+      return_date: localDateOf(input.returned_at),
+      return_time: localTimeOf(input.returned_at),
+      bond_status: '',
+      notes: input.notes,
+      source_sheet: 'handback',
+      created_by: input.staffId,
+      updated_by: input.staffId,
+    })
+    .select('*')
+    .single()
+  const ret = must(data, error)
+  // The hand-back row is the source of truth; closing the intake is best-effort so a failure
+  // here never makes the caller retry (which would create a duplicate hand-back).
+  try {
+    if (intake) await updateMovement(intake.id, { status: 'closed' }, input.staffId)
+  } catch {
+    /* best-effort; the hand-back is safely saved */
+  }
+  return { ret, intake }
+}
+
+/** The hand-back return recorded against an intake movement, if any. */
+export async function getHandbackForMovement(movementId: string): Promise<Return | null> {
+  const { data, error } = await supabase
+    .from('vehicle_returns')
+    .select('*')
+    .eq('movement_id', movementId)
+    .eq('source_sheet', 'handback')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) throw new Error(error.message)
+  return data
+}
+
 export async function updateReturn(id: string, patch: Partial<Return>, staffId: string): Promise<void> {
   const { error } = await supabase
     .from('vehicle_returns')
@@ -303,12 +389,14 @@ export async function listTodaysMovements(): Promise<Movement[]> {
   return must(data, error)
 }
 
-/** Returns recorded today (entered today, or dated today) — drives "Returned today". */
+/** Loaner returns recorded today (entered today, or dated today) — drives "Returned today".
+ * Excludes customer-car hand-backs (source_sheet = 'handback'); those have their own surfaces. */
 export async function listTodaysReturns(): Promise<Return[]> {
   const { data, error } = await supabase
     .from('vehicle_returns')
     .select('*')
     .or(`created_at.gte.${startOfTodayISO()},return_date.eq.${todayLocalDate()}`)
+    .neq('source_sheet', 'handback')
     .order('created_at', { ascending: false })
     .limit(500)
   return must(data, error)
@@ -428,10 +516,12 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   // 'Needs attention' counts only rows the Import Review screen can actually show
   // (movements + returns flagged needs_review), so the number matches that list.
   // Overdue bookings are surfaced separately on the Bookings tab with a red badge.
-  const [carsOut, returnedToday, goingOutToday, availableCars, bookedCars, overdue, reviewM, reviewR] =
+  const [carsOut, returnedToday, handedBackToday, goingOutToday, availableCars, bookedCars, overdue, reviewM, reviewR] =
     await Promise.all([
       count(supabase.from('vehicle_movements').select('*', { count: 'exact', head: true }).eq('status', 'active').neq('cars_out_rego', '')),
-      count(supabase.from('vehicle_returns').select('*', { count: 'exact', head: true }).eq('return_date', today)),
+      // Loaner returns only — customer-car hand-backs are counted separately below.
+      count(supabase.from('vehicle_returns').select('*', { count: 'exact', head: true }).eq('return_date', today).neq('source_sheet', 'handback')),
+      count(supabase.from('vehicle_returns').select('*', { count: 'exact', head: true }).eq('return_date', today).eq('source_sheet', 'handback')),
       count(supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'booked').gte('start_at', today0).lte('start_at', today24)),
       count(supabase.from('vehicles').select('*', { count: 'exact', head: true }).eq('status', 'available').eq('is_company_car', true)),
       count(supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'booked')),
@@ -442,6 +532,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   return {
     carsOut,
     returnedToday,
+    handedBackToday,
     goingOutToday,
     availableCars,
     bookedCars,
