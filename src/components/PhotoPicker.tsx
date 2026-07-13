@@ -55,7 +55,6 @@ export function PhotoStager({
         type="file"
         accept="image/*"
         multiple
-        capture="environment"
         className="hidden"
         onChange={(e) => {
           const chosen = Array.from(e.target.files ?? [])
@@ -110,6 +109,8 @@ export function PhotoSection({
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [viewer, setViewer] = useState<(Photo & { url: string }) | null>(null)
+  const [staged, setStaged] = useState<File[]>([])
+  const [stagedUrls, setStagedUrls] = useState<string[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
 
   const reload = () => {
@@ -121,14 +122,23 @@ export function PhotoSection({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(reload, [links.movement_id, links.return_id, links.booking_id, links.vehicle_id])
 
-  async function add(files: File[]) {
+  // Preview URLs for photos staged locally before the one-tap batch upload.
+  useEffect(() => {
+    const urls = staged.map((f) => URL.createObjectURL(f))
+    setStagedUrls(urls)
+    return () => urls.forEach((u) => URL.revokeObjectURL(u))
+  }, [staged])
+
+  async function uploadAll() {
+    if (!staged.length) return
     setBusy(true)
     setErr('')
     try {
-      for (const f of files) await uploadPhoto(f, filterType ?? defaultType, links, staffId)
+      await uploadStaged(staged, filterType ?? defaultType, links, staffId)
+      setStaged([])
       reload()
     } catch (e) {
-      // Surface the failure — a silently-dropped before/after photo is a real problem.
+      // Surface the failure — a silently-dropped photo is a real problem.
       setErr(`Photo upload failed: ${e instanceof Error ? e.message : String(e)}. Check your connection and try again.`)
     } finally {
       setBusy(false)
@@ -154,38 +164,63 @@ export function PhotoSection({
             <Spinner />
           </div>
         ) : (
-          <div className="flex flex-wrap gap-2">
-            {shown.map((p) => (
-              <button key={p.id} type="button" onClick={() => setViewer(p)} className="relative">
-                <img src={p.url} alt={typeLabels[p.photo_type]} className="h-20 w-20 rounded-xl object-cover" />
-                {!filterType && (
-                  <span className="absolute right-0 bottom-0 left-0 rounded-b-xl bg-black/45 px-1 py-0.5 text-center text-[9px] font-medium text-white">
-                    {typeLabels[p.photo_type]}
-                  </span>
-                )}
+          <>
+            <div className="flex flex-wrap gap-2">
+              {shown.map((p) => (
+                <button key={p.id} type="button" onClick={() => setViewer(p)} className="relative">
+                  <img src={p.url} alt={typeLabels[p.photo_type]} className="h-20 w-20 rounded-xl object-cover" />
+                  {!filterType && (
+                    <span className="absolute right-0 bottom-0 left-0 rounded-b-xl bg-black/45 px-1 py-0.5 text-center text-[9px] font-medium text-white">
+                      {typeLabels[p.photo_type]}
+                    </span>
+                  )}
+                </button>
+              ))}
+              {stagedUrls.map((src, i) => (
+                <div key={`staged-${i}`} className="relative">
+                  <img src={src} alt="" className="h-20 w-20 rounded-xl object-cover ring-2 ring-ios-blue" />
+                  <button
+                    type="button"
+                    aria-label="Remove photo"
+                    onClick={() => setStaged((s) => s.filter((_, j) => j !== i))}
+                    className="absolute -top-1.5 -right-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-ios-label text-white"
+                  >
+                    <IconX size={13} />
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => inputRef.current?.click()}
+                className="flex h-20 w-20 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-ios-gray2 text-ios-gray disabled:opacity-50"
+              >
+                <IconCamera size={24} />
+                <span className="text-[11px] font-medium">Add</span>
               </button>
-            ))}
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => inputRef.current?.click()}
-              className="flex h-20 w-20 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-ios-gray2 text-ios-gray disabled:opacity-50"
-            >
-              {busy ? <Spinner /> : <IconCamera size={24} />}
-              <span className="text-[11px] font-medium">{busy ? '' : 'Add'}</span>
-            </button>
-          </div>
+            </div>
+            {staged.length > 0 && (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={uploadAll}
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-ios-blue py-2.5 text-[15px] font-semibold text-white disabled:opacity-60"
+              >
+                {busy && <Spinner />}
+                {busy ? 'Uploading…' : `Upload ${staged.length} photo${staged.length === 1 ? '' : 's'}`}
+              </button>
+            )}
+          </>
         )}
         <input
           ref={inputRef}
           type="file"
           accept="image/*"
           multiple
-          capture="environment"
           className="hidden"
           onChange={(e) => {
             const chosen = Array.from(e.target.files ?? [])
-            if (chosen.length) add(chosen)
+            if (chosen.length) setStaged((s) => [...s, ...chosen])
             e.target.value = ''
           }}
         />

@@ -12,8 +12,8 @@ import {
   LoadingScreen, PageTitle, SegmentedControl, SortControl,
 } from '../components/ui'
 
-type FilterKey = 'all' | 'available' | 'out' | 'booked' | 'returned' | 'repair' | 'review' | 'nomake'
-type ScopeKey = 'fleet' | 'older' | 'customer'
+type FilterKey = 'all' | 'available' | 'out' | 'returned'
+type ScopeKey = 'fleet' | 'all'
 type VSortKey = 'rego' | 'make' | 'status' | 'added'
 const VSORT_OPTS: { value: VSortKey; label: string }[] = [
   { value: 'rego', label: 'Rego (A–Z)' },
@@ -73,7 +73,7 @@ export default function Availability() {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<FilterKey>(() => {
     const f = searchParams.get('filter')
-    const valid: FilterKey[] = ['all', 'available', 'out', 'booked', 'returned', 'repair', 'review', 'nomake']
+    const valid: FilterKey[] = ['all', 'available', 'out', 'returned']
     return f && (valid as string[]).includes(f) ? (f as FilterKey) : 'all'
   })
   const [sort, setSort] = useState<VSortKey>('rego')
@@ -98,36 +98,25 @@ export default function Availability() {
     }
   }, [])
 
-  // Fleet-scope tallies: the live fleet, older/disposed company cars, customer cars.
+  // Scope tallies: our current fleet vs every vehicle on file.
   const scopeCounts = useMemo(() => {
-    let fleet = 0, older = 0, customer = 0
-    for (const v of vehicles) {
-      if (!v.is_company_car) customer++
-      else if (isActiveFleet(v.rego)) fleet++
-      else older++
-    }
-    return { fleet, older, customer }
+    let fleet = 0
+    for (const v of vehicles) if (v.is_company_car && isActiveFleet(v.rego)) fleet++
+    return { fleet, all: vehicles.length }
   }, [vehicles])
 
   const scopeOptions = useMemo(
     (): { value: ScopeKey; label: string }[] => [
       { value: 'fleet', label: `Active fleet ${scopeCounts.fleet}` },
-      { value: 'older', label: `Older ${scopeCounts.older}` },
-      { value: 'customer', label: `Customer ${scopeCounts.customer}` },
+      { value: 'all', label: `All ${scopeCounts.all}` },
     ],
     [scopeCounts],
   )
 
-  // 1. Fleet scope, 2. search, 3. chip filter.
+  // 1. Scope (our fleet vs all), 2. search, 3. chip filter.
   const scoped = useMemo(() => {
-    switch (scope) {
-      case 'older':
-        return vehicles.filter((v) => v.is_company_car && !isActiveFleet(v.rego))
-      case 'customer':
-        return vehicles.filter((v) => !v.is_company_car)
-      default:
-        return vehicles.filter((v) => v.is_company_car && isActiveFleet(v.rego))
-    }
+    if (scope === 'all') return vehicles
+    return vehicles.filter((v) => v.is_company_car && isActiveFleet(v.rego))
   }, [vehicles, scope])
 
   const searched = useMemo(() => {
@@ -143,15 +132,11 @@ export default function Availability() {
   }, [scoped, search])
 
   const counts = useMemo(() => {
-    const c = { all: searched.length, available: 0, out: 0, booked: 0, returned: 0, repair: 0, review: 0, nomake: 0 }
+    const c = { all: searched.length, available: 0, out: 0, returned: 0 }
     for (const v of searched) {
       if (v.status === 'available') c.available++
       else if (v.status === 'out') c.out++
-      else if (v.status === 'booked') c.booked++
-      else if (v.status === 'repair') c.repair++
-      else if (v.status === 'unknown') c.review++
       if (returnedToday.has(v.rego)) c.returned++
-      if (!v.make.trim()) c.nomake++
     }
     return c
   }, [searched, returnedToday])
@@ -161,11 +146,7 @@ export default function Availability() {
       { value: 'all', label: `All ${counts.all}` },
       { value: 'available', label: `Available ${counts.available}` },
       { value: 'out', label: `Out ${counts.out}` },
-      { value: 'booked', label: `Booked ${counts.booked}` },
       { value: 'returned', label: `Returned today ${counts.returned}` },
-      { value: 'repair', label: `Repair ${counts.repair}` },
-      { value: 'review', label: `Review ${counts.review}` },
-      { value: 'nomake', label: `No make ${counts.nomake}` },
     ],
     [counts],
   )
@@ -176,16 +157,8 @@ export default function Availability() {
         return searched.filter((v) => v.status === 'available')
       case 'out':
         return searched.filter((v) => v.status === 'out')
-      case 'booked':
-        return searched.filter((v) => v.status === 'booked')
       case 'returned':
         return searched.filter((v) => returnedToday.has(v.rego))
-      case 'repair':
-        return searched.filter((v) => v.status === 'repair')
-      case 'review':
-        return searched.filter((v) => v.status === 'unknown')
-      case 'nomake':
-        return searched.filter((v) => !v.make.trim())
       default:
         return searched
     }
@@ -253,7 +226,7 @@ export default function Availability() {
               vehicles.length === 0
                 ? 'No vehicles in the system yet.'
                 : scope === 'fleet'
-                  ? 'Try a different filter, or check the Older / Customer tabs.'
+                  ? 'Try a different filter, or switch to All.'
                   : 'Try a different filter or search.'
             }
           />
