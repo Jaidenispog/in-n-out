@@ -80,6 +80,13 @@ export default function AppShell() {
             onClick={() => go('/intake')}
           />
           <ActionRow
+            icon={<IconCar size={22} />}
+            iconBg="bg-ios-green"
+            title="Give car back"
+            subtitle="Repaired car returned to customer + tow card"
+            onClick={() => go('/handback')}
+          />
+          <ActionRow
             icon={<IconCalendar size={22} />}
             iconBg="bg-ios-orange"
             title="New booking"

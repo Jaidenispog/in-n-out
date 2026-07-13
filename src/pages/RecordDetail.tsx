@@ -7,7 +7,7 @@ import { useAuth } from '../auth/AuthContext'
 import { PURPOSE_OPTIONS } from '../lib/types'
 import type { Activity, Booking, Movement, MovementStatus, RentalPeriod, Return, Vehicle, VehicleStatus } from '../lib/types'
 import { bookingStatusLabel, bookingStatusTone, formatDate, formatDateTime, formatDuration, localDateOf, localTimeOf, movementStatusLabel, movementStatusTone, normRego, purposeLabel, purposeTone, staffLabel, timeAgo, vehicleStatusLabel, vehicleStatusTone } from '../lib/utils'
-import { cancelBooking, createMovement, getBooking, getMovement, getRawImportRow, getReturn, historyForRecord, listRentalHistoryByRego, listVehicles, setVehicleStatusByRego, updateBooking, updateMovement, updateReturn, updateVehicle } from '../lib/db'
+import { cancelBooking, createMovement, getBooking, getMovement, getRawImportRow, getReturn, getVehicleByRego, historyForRecord, listRentalHistoryByRego, listVehicles, setVehicleStatusByRego, updateBooking, updateMovement, updateReturn, updateVehicle } from '../lib/db'
 import { Badge, Button, Card, ErrorBanner, Field, IconChevronLeft, Input, ListRow, LoadingScreen, PageTitle, SectionHeader, SegmentedControl, Spinner, TextArea } from '../components/ui'
 import { PhotoSection } from '../components/PhotoPicker'
 import { VehicleTracking } from '../components/VehicleTracking'
@@ -154,6 +154,37 @@ function IntakeView({ m }: { m: Movement }) {
       <Row label="Client details (import)" value={m.client_details_raw} />
     </Card>
   )
+}
+
+function HandbackView({ m }: { m: Movement }) {
+  const when = m.moved_at ? formatDateTime(m.moved_at) : [m.movement_date, m.movement_time].filter(Boolean).join(' ')
+  return (
+    <Card className="mb-3">
+      <div className="flex flex-wrap gap-2 border-b border-ios-sep px-4 py-3">
+        <Badge tone="green">Car handed back</Badge>
+      </div>
+      <Row label="Staff" value={staffLabel(m.staff_name)} />
+      <Row label="Customer" value={m.driver_name} />
+      <Row label="Phone" value={tel(m.driver_phone)} />
+      <Row label="Car rego" value={m.cars_in_rego} />
+      <Row label="When" value={when} />
+      <Row label="Notes" value={m.notes} />
+    </Card>
+  )
+}
+
+// Tow card lives on the vehicle (findable later by rego), so resolve the rego → vehicle.
+function TowCardSection({ rego, staffId }: { rego: string; staffId: string }) {
+  const [vehicleId, setVehicleId] = useState<string | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    getVehicleByRego(rego)
+      .then((v) => { if (!cancelled) setVehicleId(v?.id ?? null) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [rego])
+  if (!vehicleId) return null
+  return <PhotoSection links={{ vehicle_id: vehicleId }} defaultType="tow_card" filterType="tow_card" title="Tow card" staffId={staffId} />
 }
 
 function ReturnView({ r, onOpenMovement, period }: { r: Return; onOpenMovement: (id: string) => void; period: RentalPeriod | null }) {
@@ -571,6 +602,7 @@ export default function RecordDetail() {
   const title = !type ? 'Record'
     : type === 'vehicle' ? (rec?.kind === 'vehicle' ? rec.row.rego : 'Vehicle')
     : type === 'movement' && rec?.kind === 'movement' && rec.row.purpose === 'INTAKE' ? 'Car intake'
+    : type === 'movement' && rec?.kind === 'movement' && rec.row.purpose === 'HANDBACK' ? 'Car handback'
     : (TITLES[type] ?? 'Record')
 
   return (
@@ -600,7 +632,7 @@ export default function RecordDetail() {
 
           {editing ? (
             rec.kind === 'movement' ? (
-              rec.row.purpose === 'INTAKE' ? (
+              rec.row.purpose === 'INTAKE' || rec.row.purpose === 'HANDBACK' ? (
                 <IntakeEdit key={rec.row.id} m={rec.row} saving={saving} onSave={(p) => doSave(() => updateMovement(rec.row.id, p, staffId))} />
               ) : (
                 <MovementEdit key={rec.row.id} m={rec.row} saving={saving} onSave={(p) => doSave(() => saveMovement(rec.row as Movement, p))} />
@@ -614,7 +646,7 @@ export default function RecordDetail() {
             )
           ) : (
             <>
-              {rec.kind === 'movement' && (rec.row.purpose === 'INTAKE' ? <IntakeView m={rec.row} /> : <MovementView m={rec.row} period={period} />)}
+              {rec.kind === 'movement' && (rec.row.purpose === 'INTAKE' ? <IntakeView m={rec.row} /> : rec.row.purpose === 'HANDBACK' ? <HandbackView m={rec.row} /> : <MovementView m={rec.row} period={period} />)}
               {rec.kind === 'return' && <ReturnView r={rec.row} period={period} onOpenMovement={(mid) => navigate(`/record/movement/${mid}`)} />}
               {rec.kind === 'booking' && <BookingView b={rec.row} />}
               {rec.kind === 'vehicle' && <VehicleView v={rec.row} />}
@@ -648,20 +680,30 @@ export default function RecordDetail() {
 
           {rec.kind === 'movement' && rec.row.purpose === 'INTAKE' ? (
             <PhotoSection links={{ movement_id: rec.row.id }} defaultType="damage" filterType="damage" title="Damage photos" staffId={staffId} />
+          ) : rec.kind === 'movement' && rec.row.purpose === 'HANDBACK' ? (
+            <>
+              <PhotoSection links={{ movement_id: rec.row.id }} defaultType="other" filterType="other" title="Handover photos" staffId={staffId} />
+              <TowCardSection rego={rec.row.cars_in_rego} staffId={staffId} />
+            </>
           ) : rec.kind === 'movement' ? (
             <>
               <PhotoSection links={{ movement_id: rec.row.id }} defaultType="before_handover" filterType="before_handover" title="Before photos — our car" staffId={staffId} />
               <PhotoSection links={{ movement_id: rec.row.id }} defaultType="damage" filterType="damage" title="Before photos — their car" staffId={staffId} />
             </>
+          ) : rec.kind === 'vehicle' ? (
+            rec.row.is_company_car ? (
+              <PhotoSection links={{ vehicle_id: rec.row.id }} defaultType="other" title="Photos" staffId={staffId} />
+            ) : (
+              <>
+                <PhotoSection links={{ vehicle_id: rec.row.id }} defaultType="other" filterType="other" title="Report card" staffId={staffId} />
+                <PhotoSection links={{ vehicle_id: rec.row.id }} defaultType="tow_card" filterType="tow_card" title="Tow card" staffId={staffId} />
+              </>
+            )
           ) : (
             <PhotoSection
-              links={
-                rec.kind === 'return' ? { return_id: rec.row.id }
-                : rec.kind === 'booking' ? { booking_id: rec.row.id }
-                : { vehicle_id: rec.row.id }
-              }
+              links={rec.kind === 'return' ? { return_id: rec.row.id } : { booking_id: rec.row.id }}
               defaultType={rec.kind === 'return' ? 'after_return' : 'other'}
-              title={rec.kind === 'vehicle' && !rec.row.is_company_car ? 'Report card' : 'Photos'}
+              title="Photos"
               staffId={staffId}
             />
           )}

@@ -89,6 +89,7 @@ const typeLabels: Record<PhotoType, string> = {
   odometer: 'Odometer',
   fuel: 'Fuel',
   other: 'Other',
+  tow_card: 'Tow card',
 }
 
 export function PhotoSection({

@@ -202,13 +202,17 @@ export default function Dashboard() {
           </div>
 
           <div className="mt-3 flex gap-3">
-            <Button variant="secondary" className="flex-1 text-[15px]!" onClick={() => navigate('/new')}>
-              New movement
-            </Button>
             <Button variant="secondary" className="flex-1 text-[15px]!" onClick={() => navigate('/intake')}>
               Customer car intake
             </Button>
+            <Button variant="secondary" className="flex-1 text-[15px]!" onClick={() => navigate('/handback')}>
+              Give car back
+            </Button>
           </div>
+
+          <Button variant="secondary" full className="mt-3 text-[15px]!" onClick={() => navigate('/new')}>
+            New movement
+          </Button>
 
           <SectionHeader action={<button type="button" onClick={() => navigate('/audit')} className="text-[15px] font-medium text-ios-blue active:opacity-60">See all</button>}>Recent activity</SectionHeader>
           <Card>

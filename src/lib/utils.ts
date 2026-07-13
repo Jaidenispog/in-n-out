@@ -144,6 +144,7 @@ export const purposeTone: Record<string, Tone> = {
   PICKUP: 'gray',
   RETURN: 'green',
   INTAKE: 'orange',
+  HANDBACK: 'green',
   OTHER: 'gray',
 }
 

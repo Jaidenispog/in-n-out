@@ -194,6 +194,23 @@ export async function findActiveMovementByRego(rego: string): Promise<Movement |
   return data
 }
 
+/** The customer's still-open record where THEIR car came in (cars_in) — used to
+ *  prefill the customer and close the loop when handing the repaired car back. */
+export async function findOpenCarInByRego(rego: string): Promise<Movement | null> {
+  const clean = normRego(rego)
+  if (!clean) return null
+  const { data, error } = await supabase
+    .from('vehicle_movements')
+    .select('*')
+    .eq('cars_in_rego', clean)
+    .eq('status', 'active')
+    .order('moved_at', { ascending: false, nullsFirst: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) throw new Error(error.message)
+  return data
+}
+
 /** Everything staff should be warned about before giving this car out. */
 export async function getRegoConflicts(rego: string): Promise<RegoConflict> {
   const clean = normRego(rego)
