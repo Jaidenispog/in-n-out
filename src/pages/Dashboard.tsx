@@ -13,7 +13,6 @@ import {
   ErrorBanner,
   IconArrowDown,
   IconArrowUp,
-  IconCalendar,
   IconCar,
   IconClock,
   IconGear,
@@ -160,27 +159,6 @@ export default function Dashboard() {
                 tone="blue"
                 icon={<IconArrowDown size={18} />}
                 onClick={() => navigate('/today?view=returned')}
-              />
-              <StatCard
-                value={stats.goingOutToday}
-                label="Going out today"
-                tone="orange"
-                icon={<IconCalendar size={18} />}
-                onClick={() => navigate('/bookings')}
-              />
-              <StatCard
-                value={stats.bookedCars}
-                label="Booked"
-                tone="orange"
-                icon={<IconCalendar size={18} />}
-                onClick={() => navigate('/bookings')}
-              />
-              <StatCard
-                value={stats.overdue}
-                label="Overdue"
-                tone={stats.overdue > 0 ? 'red' : 'gray'}
-                icon={<IconClock size={18} />}
-                onClick={() => navigate('/bookings?tab=active')}
               />
               <StatCard
                 value={stats.needsAttention}
