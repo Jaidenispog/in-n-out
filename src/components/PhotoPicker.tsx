@@ -368,7 +368,11 @@ function PhotoViewer({ url, onClose, onDelete }: { url: string; onClose: () => v
   }
 
   function onPointerDown(e: React.PointerEvent) {
-    ;(e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
+    // Capture keeps a drag alive outside the frame — but it throws for some
+    // pointer sources, and a failed capture must never kill the gesture.
+    try {
+      ;(e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
+    } catch { /* gestures work without capture */ }
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
     if (pointers.current.size === 2) {
       const [a, b] = [...pointers.current.values()]
@@ -432,7 +436,6 @@ function PhotoViewer({ url, onClose, onDelete }: { url: string; onClose: () => v
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
-        onDoubleClick={(e) => zoomTo(scale > 1 ? 1 : 3, e.clientX, e.clientY)}
       >
         <div
           data-testid="photo-zoom-inner"
